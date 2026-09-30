@@ -105,7 +105,7 @@ export default function SiteFooter() {
           {/* Bottom Bar */}
           <div className="border-t border-zinc-200 mt-10 sm:mt-12 pt-5 sm:pt-6 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
             <p className="text-[11px] sm:text-[12px] font-medium text-zinc-500">
-              © 2024 SriRam Garments. All rights reserved.
+              © 2026 Built by <a href="https://swiftrise.in/" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-700 underline underline-offset-2">Swiftrise Solution Pvt Ltd</a>.
             </p>
             <div className="flex items-center gap-4 text-zinc-500">
               <a href="#" className="hover:text-zinc-900 transition-colors" aria-label="Instagram">
