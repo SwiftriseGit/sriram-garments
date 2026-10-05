@@ -59,7 +59,7 @@ export default function SiteFooter() {
             <div>
               <h4 className="font-bold text-[14px] sm:text-[15px] text-zinc-900 mb-4 sm:mb-5">Shop</h4>
               <ul className="space-y-2.5 sm:space-y-3">
-                {["Men", "Women", "Kids", "New Arrivals", "Offers"].map((link) => (
+                {["Men", "New Arrivals", "Offers"].map((link) => (
                   <li key={link}>
                     <a href="#" className="text-[12px] sm:text-[13px] font-medium text-zinc-600 hover:text-orange-500 transition-colors">
                       {link}

@@ -1,94 +1,74 @@
 import Image from "next/image";
-import { Card, CardContent } from "@/components/ui/card";
 import { ArrowRight } from "lucide-react";
-
-const categories = [
-  {
-    name: "Men",
-    description: "T-Shirts, Shirts,\nJeans & More",
-    bg: "bg-zinc-100",
-    imageBg: "bg-zinc-200",
-    textColor: "text-zinc-900",
-    descColor: "text-zinc-500",
-  },
-  {
-    name: "Women",
-    description: "Kurtis, Tops,\nEthnic Wear & More",
-    bg: "bg-[#fcf0ec]",
-    imageBg: "bg-[#f5d9cf]",
-    textColor: "text-zinc-900",
-    descColor: "text-zinc-500",
-  },
-  {
-    name: "Kids",
-    description: "Trendy Wear\nfor Little Ones",
-    bg: "bg-zinc-100",
-    imageBg: "bg-zinc-200",
-    textColor: "text-zinc-900",
-    descColor: "text-zinc-500",
-  },
-  {
-    name: "Offers",
-    description: "Best Deals\non Garments",
-    bg: "bg-orange-50",
-    imageBg: "bg-orange-500",
-    textColor: "text-orange-900",
-    descColor: "text-orange-700/80",
-    isOffer: true,
-  },
-];
 
 export default function CategoryCards() {
   return (
     <section className="max-w-[1340px] mx-auto px-3 sm:px-4 md:px-8 py-8 sm:py-10">
-      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        {categories.map((cat) => (
-          <Card
-            key={cat.name}
-            className={`${cat.bg} border-none overflow-hidden relative group cursor-pointer h-[140px] sm:h-[160px] lg:h-[180px] rounded-xl sm:rounded-2xl shadow-none`}
-          >
-            <CardContent className="p-3.5 sm:p-5 flex flex-col justify-between h-full relative z-10 w-[60%]">
-              <div>
-                <h3
-                  className={`text-base sm:text-xl font-bold mb-1 ${cat.textColor}`}
-                >
-                  {cat.name}
-                </h3>
-                <p
-                  className={`text-[10px] sm:text-[11px] leading-[1.4] whitespace-pre-line ${cat.descColor}`}
-                >
-                  {cat.description}
-                </p>
-              </div>
-              <button
-                aria-label={`Shop ${cat.name}`}
-                className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-orange-500 text-white flex items-center justify-center shadow group-hover:scale-110 transition-transform mt-2 sm:mt-3"
-              >
-                <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              </button>
-            </CardContent>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+        {/* Men's Collection */}
+        <a
+          href="/collections"
+          className="relative group cursor-pointer h-[180px] sm:h-[200px] lg:h-[240px] rounded-xl sm:rounded-2xl overflow-hidden bg-zinc-900"
+        >
+          <div className="absolute right-0 top-0 bottom-0 w-[40%] bg-zinc-800 rounded-tl-[80px]" />
 
-            {/* Image Placeholder */}
-            <div className={`absolute right-0 bottom-0 z-0 ${cat.isOffer ? 'w-[65%] h-[85%]' : 'w-[45%] h-full'}`}>
-              {cat.isOffer ? (
-                <div className="w-full h-full relative right-2">
-                  <Image
-                    src="/images/discount-bags.png"
-                    alt="Best Deals on Garments"
-                    fill
-                    className="object-contain object-bottom-right"
-                    sizes="(max-width: 768px) 65vw, 25vw"
-                  />
-                </div>
-              ) : (
-                /* Replace with: /images/category-{name}.png */
-                <div
-                  className={`w-full h-full ${cat.imageBg} rounded-tl-2xl`}
-                />
-              )}
+          <div className="relative z-10 p-5 sm:p-7 lg:p-8 flex flex-col justify-between h-full">
+            <div>
+              <h3 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white mb-1">
+                Men&apos;s
+              </h3>
+              <p className="text-[11px] sm:text-[12px] font-medium text-zinc-400 leading-relaxed">
+                T-Shirts, Shirts, Jeans &amp; More
+              </p>
             </div>
-          </Card>
-        ))}
+
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] sm:text-[12px] font-semibold text-white group-hover:text-orange-400 transition-colors">
+                Shop Now
+              </span>
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-orange-500 text-white flex items-center justify-center group-hover:scale-110 transition-transform">
+                <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              </div>
+            </div>
+          </div>
+        </a>
+
+        {/* Offers */}
+        <a
+          href="/collections"
+          className="relative group cursor-pointer h-[180px] sm:h-[200px] lg:h-[240px] rounded-xl sm:rounded-2xl overflow-hidden bg-orange-50"
+        >
+          <div className="relative z-10 p-5 sm:p-7 lg:p-8 flex flex-col justify-between h-full w-[55%]">
+            <div>
+              <h3 className="text-xl sm:text-2xl lg:text-3xl font-bold text-orange-900 mb-1">
+                Offers
+              </h3>
+              <p className="text-[11px] sm:text-[12px] font-medium text-orange-700/70 leading-relaxed">
+                Best Deals on Garments
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] sm:text-[12px] font-semibold text-orange-900 group-hover:text-orange-600 transition-colors">
+                Shop Offers
+              </span>
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-orange-500 text-white flex items-center justify-center group-hover:scale-110 transition-transform">
+                <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              </div>
+            </div>
+          </div>
+
+          {/* Bags Image */}
+          <div className="absolute right-0 bottom-0 w-[50%] h-[85%] z-0">
+            <Image
+              src="/images/discount-bags.png"
+              alt="Best Deals"
+              fill
+              className="object-contain object-bottom-right group-hover:scale-105 transition-transform duration-500"
+              sizes="(max-width: 768px) 50vw, 25vw"
+            />
+          </div>
+        </a>
       </div>
     </section>
   );

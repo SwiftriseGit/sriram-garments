@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Montserrat } from "next/font/google";
 import "./globals.css";
-// import InitialLoader from "@/components/InitialLoader";
 
 const montserrat = Montserrat({
   variable: "--font-montserrat",
@@ -16,16 +15,20 @@ export const metadata: Metadata = {
     "Shop premium quality shirts, t-shirts, jeans, ethnic wear and more at SriRam Garments. Comfortable, stylish and affordable clothing for men, women, and kids.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html
       lang="en"
       className={`${montserrat.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col font-sans">
-        {/* <InitialLoader> */}
-        {children}
-        {/* </InitialLoader> */}
+        <div className="min-h-screen bg-white text-zinc-950 flex flex-col">
+          {children}
+        </div>
       </body>
     </html>
   );
