@@ -327,7 +327,7 @@ const SORTERS: Record<CollectionQuery["sort"], (a: Product, b: Product) => numbe
  */
 export async function getProducts(query: CollectionQuery): Promise<ProductPage> {
   "use cache";
-  cacheLife("hours");
+  cacheLife("catalog");
   cacheTag("products");
 
   const filtered = applyFilters(PRODUCTS, query).sort(SORTERS[query.sort]);
@@ -348,7 +348,7 @@ export async function getProducts(query: CollectionQuery): Promise<ProductPage> 
 /** Counts shown next to each filter option (computed over the full catalog). */
 export async function getCollectionFacets(): Promise<FacetCounts> {
   "use cache";
-  cacheLife("hours");
+  cacheLife("catalog");
   cacheTag("products");
 
   const counts: FacetCounts = {};
@@ -369,7 +369,7 @@ export async function getCollectionFacets(): Promise<FacetCounts> {
 
 export async function getProductBySlug(slug: string): Promise<Product | null> {
   "use cache";
-  cacheLife("hours");
+  cacheLife("catalog");
   cacheTag("products", `product:${slug}`);
 
   return PRODUCTS.find((p) => p.slug === slug) ?? null;
@@ -378,7 +378,7 @@ export async function getProductBySlug(slug: string): Promise<Product | null> {
 /** Other colourways of the same garment (including the current one). */
 export async function getStyleVariants(styleId: string): Promise<Product[]> {
   "use cache";
-  cacheLife("hours");
+  cacheLife("catalog");
   cacheTag("products");
 
   return PRODUCTS.filter((p) => p.styleId === styleId);
@@ -390,7 +390,7 @@ export async function getRelatedProducts(
   limit = 4,
 ): Promise<Product[]> {
   "use cache";
-  cacheLife("hours");
+  cacheLife("catalog");
   cacheTag("products");
 
   // One colourway per style, same category first, then best sellers
@@ -413,7 +413,7 @@ export async function getRelatedProducts(
 
 export async function getAllProductSlugs(): Promise<string[]> {
   "use cache";
-  cacheLife("hours");
+  cacheLife("catalog");
   cacheTag("products");
 
   return PRODUCTS.map((p) => p.slug);

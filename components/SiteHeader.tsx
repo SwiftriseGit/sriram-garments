@@ -71,12 +71,13 @@ export default function SiteHeader() {
         <div className="flex items-center gap-2 sm:gap-3">
           {/* Action Icons */}
           <div className="flex items-center gap-2 sm:gap-3">
-            <button
+            <Link
+              href="/profile"
               aria-label="Account"
               className="p-1 text-zinc-700 hover:text-orange-500 transition-colors hidden sm:block"
             >
               <User className="w-5 h-5 sm:w-[22px] sm:h-[22px]" />
-            </button>
+            </Link>
             <Sheet>
               <SheetTrigger
                 aria-label="Wishlist"
@@ -184,14 +185,14 @@ export default function SiteHeader() {
 
       {/* Mobile Menu Dropdown */}
       <div
-        className={`lg:hidden absolute top-full left-0 w-full bg-white border-b border-zinc-200 shadow-lg flex flex-col z-40 transition-all duration-300 ease-in-out origin-top ${
+        className={`lg:hidden absolute top-full left-0 w-full bg-white border-b border-zinc-200 shadow-xl flex flex-col z-40 transition-all duration-300 ease-in-out origin-top ${
           isMobileMenuOpen
             ? "opacity-100 translate-y-0 visible pointer-events-auto"
             : "opacity-0 -translate-y-4 invisible pointer-events-none"
         }`}
       >
-        <div className="py-4 px-6">
-          <nav className="flex flex-col gap-4 mb-6 border-b border-zinc-100 pb-6">
+        <div className="py-6 px-6 flex flex-col items-center">
+          <nav className="flex flex-col items-center gap-1.5 mb-5 border-b border-zinc-100 pb-5 w-full max-w-sm">
             {navLinks.map((link) => {
               const active = isActive(link.href);
               return (
@@ -199,8 +200,10 @@ export default function SiteHeader() {
                   key={link.label}
                   href={link.href}
                   aria-current={active ? "page" : undefined}
-                  className={`text-base font-medium ${
-                    active ? "text-orange-500" : "text-zinc-600"
+                  className={`w-full text-center py-2.5 px-4 rounded-xl text-base transition-all ${
+                    active
+                      ? "text-orange-600 font-semibold bg-orange-50/80 shadow-xs"
+                      : "text-zinc-700 font-medium hover:text-orange-500 hover:bg-zinc-50"
                   }`}
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
@@ -209,16 +212,16 @@ export default function SiteHeader() {
               );
             })}
           </nav>
-          
-          <div className="flex flex-col gap-4">
-            <button className="flex items-center gap-3 text-zinc-700 hover:text-orange-500 font-medium transition-colors">
-              <User className="w-5 h-5" />
-              My Account
-            </button>
-            <button className="flex items-center gap-3 text-zinc-700 hover:text-orange-500 font-medium transition-colors">
-              <Heart className="w-5 h-5" />
-              Wishlist
-            </button>
+
+          <div className="flex flex-col items-center justify-center w-full max-w-sm">
+            <Link
+              href="/profile"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="w-full flex items-center justify-center gap-2.5 text-zinc-700 hover:text-orange-600 font-semibold text-sm sm:text-base py-2.5 px-5 rounded-xl hover:bg-zinc-50 transition-colors"
+            >
+              <User className="w-4 h-4 sm:w-5 sm:h-5 text-orange-500" />
+              <span>My Account</span>
+            </Link>
           </div>
         </div>
       </div>

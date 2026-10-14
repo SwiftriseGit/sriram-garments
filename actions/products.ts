@@ -3,7 +3,6 @@
 import { requireAuth } from "@/lib/auth/session";
 import { updateTag } from "next/cache";
 import { redirect } from "next/navigation";
-import { revalidatePath } from "next/cache";
 import { MOCK_PRODUCTS } from "@/lib/data/admin/mock-data";
 
 export async function deleteProductAction(formData: FormData) {
@@ -17,9 +16,8 @@ export async function deleteProductAction(formData: FormData) {
     MOCK_PRODUCTS.splice(index, 1);
   }
   
-  // Bust storefront cache
+  // Immediate cache invalidation — all "products" tagged queries refresh
   updateTag("products");
-  revalidatePath("/admin/products");
 }
 
 export async function saveProductAction(formData: FormData) {
@@ -83,9 +81,9 @@ export async function saveProductAction(formData: FormData) {
     MOCK_PRODUCTS.push({ ...productData, id: `p${Date.now()}` });
   }
 
-  // Bust storefront cache
+  // Immediate cache invalidation for read-your-own-writes consistency
   updateTag("products");
-  revalidatePath("/admin/products");
 
   redirect("/admin/products");
 }
+

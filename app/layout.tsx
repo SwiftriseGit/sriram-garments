@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Montserrat } from "next/font/google";
+import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
 const montserrat = Montserrat({
@@ -29,6 +30,7 @@ export default function RootLayout({
         <div className="min-h-screen bg-white text-zinc-950 flex flex-col">
           {children}
         </div>
+        <Toaster />
       </body>
     </html>
   );

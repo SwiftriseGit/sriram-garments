@@ -5,17 +5,23 @@ import { saveProductAction } from "@/actions/products";
 import { CATEGORY_OPTIONS } from "@/lib/catalog/options";
 import Link from "next/link";
 import { ArrowLeft, Save } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import ImageUploader from "./ImageUploader";
 
 export default function ProductForm({ product }: { product?: any }) {
-  const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [images, setImages] = useState<string[]>(product?.images || []);
 
   return (
     <form
       action={async (formData) => {
         setIsSubmitting(true);
-        await saveProductAction(formData);
+        try {
+          await saveProductAction(formData);
+          toast.success(product ? "Product updated!" : "Product created!");
+        } catch {
+          toast.error("Failed to save product");
+        }
         setIsSubmitting(false);
       }}
       className="space-y-8 pb-12"
@@ -130,21 +136,10 @@ export default function ProductForm({ product }: { product?: any }) {
             </div>
           </div>
 
-          {/* Images */}
+          {/* Images — now with drag-and-drop uploader */}
           <div className="bg-white border rounded-xl p-6 shadow-sm space-y-6">
-            <h2 className="font-semibold text-zinc-950 text-lg">Images</h2>
-            <div>
-              <label className="block text-sm font-medium text-zinc-700 mb-1">
-                Image URLs (comma separated)
-              </label>
-              <textarea
-                name="images"
-                rows={3}
-                defaultValue={product?.images?.join(", ")}
-                className="w-full px-3 py-2 border border-zinc-300 rounded-md focus:ring-zinc-950 focus:border-zinc-950 sm:text-sm"
-                placeholder="https://..., https://..."
-              />
-            </div>
+            <h2 className="font-semibold text-zinc-950 text-lg">Product Images</h2>
+            <ImageUploader images={images} onChange={setImages} maxFiles={6} />
           </div>
         </div>
 
