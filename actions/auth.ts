@@ -8,26 +8,42 @@ import {
   SignupSchema,
   LoginSchema,
   type AuthFormState,
+  type SignupInput,
+  type LoginInput,
 } from "@/lib/validations/auth";
+
+export interface AuthResponse {
+  success?: boolean;
+  errors?: Record<string, string[] | undefined>;
+  message?: string;
+}
 
 // ──────────────────────────────────────────────
 // Signup Action
 // ──────────────────────────────────────────────
 export async function signup(
-  state: AuthFormState,
-  formData: FormData
-): Promise<AuthFormState> {
+  inputOrState: SignupInput | AuthFormState,
+  maybeFormData?: FormData
+): Promise<AuthResponse> {
+  const isFormData = maybeFormData instanceof FormData;
+  const rawData = isFormData
+    ? {
+        firstName: maybeFormData.get("firstName"),
+        lastName: maybeFormData.get("lastName"),
+        email: maybeFormData.get("email"),
+        phone: maybeFormData.get("phone"),
+        password: maybeFormData.get("password"),
+      }
+    : inputOrState && typeof inputOrState === "object" && "email" in inputOrState
+    ? inputOrState
+    : {};
+
   // 1. Validate fields
-  const parsed = SignupSchema.safeParse({
-    firstName: formData.get("firstName"),
-    lastName: formData.get("lastName"),
-    email: formData.get("email"),
-    phone: formData.get("phone"),
-    password: formData.get("password"),
-  });
+  const parsed = SignupSchema.safeParse(rawData);
 
   if (!parsed.success) {
     return {
+      success: false,
       errors: parsed.error.flatten().fieldErrors as Record<string, string[]>,
     };
   }
@@ -39,7 +55,9 @@ export async function signup(
   const existingUser = await UserModel.findOne({ email }).lean();
   if (existingUser) {
     return {
+      success: false,
       errors: { email: ["An account with this email already exists"] },
+      message: "An account with this email already exists. Please log in or use a different email.",
     };
   }
 
@@ -60,25 +78,37 @@ export async function signup(
     firstName: user.firstName,
   });
 
-  // 5. Redirect
-  redirect("/");
+  // 5. If called via native HTML form action, redirect
+  if (isFormData) {
+    redirect("/");
+  }
+
+  return { success: true };
 }
 
 // ──────────────────────────────────────────────
 // Login Action
 // ──────────────────────────────────────────────
 export async function login(
-  state: AuthFormState,
-  formData: FormData
-): Promise<AuthFormState> {
+  inputOrState: LoginInput | AuthFormState,
+  maybeFormData?: FormData
+): Promise<AuthResponse> {
+  const isFormData = maybeFormData instanceof FormData;
+  const rawData = isFormData
+    ? {
+        email: maybeFormData.get("email"),
+        password: maybeFormData.get("password"),
+      }
+    : inputOrState && typeof inputOrState === "object" && "email" in inputOrState
+    ? inputOrState
+    : {};
+
   // 1. Validate fields
-  const parsed = LoginSchema.safeParse({
-    email: formData.get("email"),
-    password: formData.get("password"),
-  });
+  const parsed = LoginSchema.safeParse(rawData);
 
   if (!parsed.success) {
     return {
+      success: false,
       errors: parsed.error.flatten().fieldErrors as Record<string, string[]>,
     };
   }
@@ -90,6 +120,7 @@ export async function login(
   const user = await UserModel.findOne({ email, isActive: true });
   if (!user) {
     return {
+      success: false,
       message: "Invalid email or password",
     };
   }
@@ -98,6 +129,7 @@ export async function login(
   const isValid = await user.comparePassword(password);
   if (!isValid) {
     return {
+      success: false,
       message: "Invalid email or password",
     };
   }
@@ -110,8 +142,12 @@ export async function login(
     firstName: user.firstName,
   });
 
-  // 5. Redirect
-  redirect("/");
+  // 5. If called via native HTML form action, redirect
+  if (isFormData) {
+    redirect("/");
+  }
+
+  return { success: true };
 }
 
 // ──────────────────────────────────────────────

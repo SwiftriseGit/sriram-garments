@@ -1,16 +1,64 @@
 "use client";
 
-import { useState, useActionState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Eye, EyeOff, ArrowLeft } from "lucide-react";
+import { Eye, EyeOff, ArrowLeft, Loader2, AlertCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { login } from "@/actions/auth";
+import { LoginSchema, type LoginInput } from "@/lib/validations/auth";
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
-  const [state, action, pending] = useActionState(login, undefined);
+  const [serverError, setServerError] = useState<string | null>(null);
   const router = useRouter();
+
+  const {
+    register,
+    handleSubmit,
+    setError,
+    formState: { errors, isSubmitting },
+  } = useForm<LoginInput>({
+    resolver: zodResolver(LoginSchema),
+    defaultValues: {
+      email: "",
+      password: "",
+    },
+    mode: "onTouched",
+  });
+
+  const onSubmit = async (data: LoginInput) => {
+    setServerError(null);
+    try {
+      const res = await login(data);
+
+      if (!res.success) {
+        if (res.errors) {
+          Object.entries(res.errors).forEach(([field, messages]) => {
+            if (messages && messages[0]) {
+              setError(field as keyof LoginInput, {
+                type: "server",
+                message: messages[0],
+              });
+            }
+          });
+        }
+        if (res.message) {
+          setServerError(res.message);
+        }
+        // NOTE: We intentionally DO NOT reset the form here,
+        // so the user does NOT have to re-type their email or password!
+        return;
+      }
+
+      // Success -> navigate to home page
+      window.location.href = "/";
+    } catch {
+      setServerError("An unexpected error occurred. Please try again.");
+    }
+  };
 
   return (
     <div className="min-h-screen flex flex-col justify-between p-4 sm:p-6 md:p-8">
@@ -27,6 +75,7 @@ export default function LoginPage() {
             <span>Back</span>
           </button>
         </div>
+
         {/* Brand Logo */}
         <div className="text-center mb-6 sm:mb-8">
           <Link href="/" className="inline-block hover:opacity-90 transition-opacity mb-3">
@@ -44,45 +93,65 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* Global error message */}
-        {state?.message && (
-          <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl mb-4">
-            {state.message}
+        {/* Global server error message */}
+        {serverError && (
+          <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl mb-4 flex items-start gap-2.5 animate-in fade-in duration-200">
+            <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+            <span>{serverError}</span>
           </div>
         )}
 
         {/* Form */}
         <form
-          action={action}
+          onSubmit={handleSubmit(onSubmit)}
+          noValidate
           className="bg-white border border-zinc-200/70 rounded-2xl p-6 sm:p-8 shadow-sm space-y-4 sm:space-y-5"
         >
+          {/* Email Address */}
           <div>
-            <label className="block text-xs sm:text-sm font-semibold text-zinc-700 mb-1.5">
+            <label
+              htmlFor="email-input"
+              className="block text-xs sm:text-sm font-semibold text-zinc-700 mb-1.5"
+            >
               Email Address
             </label>
             <input
-              name="email"
+              id="email-input"
               type="email"
-              required
+              autoComplete="email"
               placeholder="you@example.com"
-              className="w-full px-4 py-2.5 sm:py-3 border border-zinc-200 rounded-xl text-sm focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-all placeholder:text-zinc-400"
+              {...register("email")}
+              className={`w-full px-4 py-2.5 sm:py-3 border rounded-xl text-sm outline-none transition-all placeholder:text-zinc-400 ${
+                errors.email
+                  ? "border-red-400 focus:ring-2 focus:ring-red-400/20 bg-red-50/20"
+                  : "border-zinc-200 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
+              }`}
             />
-            {state?.errors?.email && (
-              <p className="text-red-500 text-xs mt-1">{state.errors.email[0]}</p>
+            {errors.email && (
+              <p className="text-red-500 text-xs mt-1 font-medium">{errors.email.message}</p>
             )}
           </div>
 
+          {/* Password */}
           <div>
-            <label className="block text-xs sm:text-sm font-semibold text-zinc-700 mb-1.5">
+            <label
+              htmlFor="password-input"
+              className="block text-xs sm:text-sm font-semibold text-zinc-700 mb-1.5"
+            >
               Password
             </label>
             <div className="relative">
               <input
-                name="password"
+                id="password-input"
                 type={showPassword ? "text" : "password"}
-                required
+                autoComplete="current-password"
                 placeholder="••••••••"
-                className="w-full px-4 py-2.5 sm:py-3 pr-10 border border-zinc-200 rounded-xl text-sm focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-all placeholder:text-zinc-400"
+                {...register("password")}
+                className={`w-full px-4 py-2.5 sm:py-3 pr-10 border rounded-xl text-sm outline-none transition-all placeholder:text-zinc-400 ${
+                  errors.password
+                    ? "border-red-400 focus:ring-2 focus:ring-red-400/20 bg-red-50/20"
+                    : "border-zinc-200 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
+                }`}
               />
               <button
                 type="button"
@@ -93,11 +162,12 @@ export default function LoginPage() {
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
-            {state?.errors?.password && (
-              <p className="text-red-500 text-xs mt-1">{state.errors.password[0]}</p>
+            {errors.password && (
+              <p className="text-red-500 text-xs mt-1 font-medium">{errors.password.message}</p>
             )}
           </div>
 
+          {/* Remember me & Forgot password */}
           <div className="flex items-center justify-between text-xs sm:text-sm pt-1">
             <label className="flex items-center gap-2 cursor-pointer select-none">
               <input
@@ -114,12 +184,20 @@ export default function LoginPage() {
             </button>
           </div>
 
+          {/* Submit Button */}
           <button
             type="submit"
-            disabled={pending}
-            className="w-full bg-zinc-950 text-white py-3 sm:py-3.5 rounded-xl text-xs sm:text-sm font-semibold hover:bg-zinc-800 transition-colors disabled:opacity-50 shadow-sm"
+            disabled={isSubmitting}
+            className="w-full bg-zinc-950 text-white py-3 sm:py-3.5 rounded-xl text-xs sm:text-sm font-semibold hover:bg-zinc-800 transition-colors disabled:opacity-50 shadow-sm flex items-center justify-center gap-2 cursor-pointer"
           >
-            {pending ? "Signing in..." : "Sign In"}
+            {isSubmitting ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin text-white" />
+                <span>Signing in...</span>
+              </>
+            ) : (
+              "Sign In"
+            )}
           </button>
         </form>
 
