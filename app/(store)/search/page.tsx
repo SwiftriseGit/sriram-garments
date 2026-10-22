@@ -1,8 +1,8 @@
 import { getProducts } from "@/lib/data/products";
 import { parseCollectionQuery } from "@/lib/catalog/query";
-import { formatPrice, discountPercent } from "@/lib/format";
 import Link from "next/link";
 import { Search as SearchIcon } from "lucide-react";
+import ProductCard from "@/components/product/ProductCard";
 
 export default async function SearchPage({
   searchParams,
@@ -12,12 +12,10 @@ export default async function SearchPage({
   const params = await searchParams;
   const q = (typeof params.q === "string" ? params.q : params.q?.[0]) || "";
 
-  // For now, use the existing product query with default filters
-  // When DB is connected, this will use text search
+  // Query catalog from MongoDB
   const query = parseCollectionQuery({});
   const { items: allProducts } = await getProducts(query);
 
-  // Simple client-side text search on dummy data
   const results = q.trim()
     ? allProducts.filter(
         (p) =>
@@ -28,7 +26,7 @@ export default async function SearchPage({
     : [];
 
   return (
-    <section className="max-w-[1340px] mx-auto px-4 md:px-8 py-8 sm:py-12">
+    <section className="max-w-335 mx-auto px-4 md:px-8 py-8 sm:py-12">
       {/* Search input */}
       <div className="max-w-2xl mx-auto mb-10">
         <form action="/search" method="GET">
@@ -67,51 +65,9 @@ export default async function SearchPage({
 
           {results.length > 0 && (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
-              {results.map((product) => {
-                const discount = discountPercent(product.price, product.compareAtPrice);
-                return (
-                  <Link
-                    key={product.id}
-                    href={`/products/${product.slug}`}
-                    className="group"
-                  >
-                    <div
-                      className="aspect-[3/4] rounded-xl overflow-hidden flex items-center justify-center relative"
-                      style={{ backgroundColor: product.color.hex }}
-                    >
-                      <span
-                        className={`text-sm font-bold ${
-                          product.color.tone === "dark"
-                            ? "text-white/40"
-                            : "text-zinc-900/20"
-                        }`}
-                      >
-                        {product.color.name}
-                      </span>
-                      {discount > 0 && (
-                        <span className="absolute top-2 left-2 bg-orange-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
-                          -{discount}%
-                        </span>
-                      )}
-                    </div>
-                    <div className="mt-3 space-y-1">
-                      <p className="text-sm font-semibold text-zinc-900 group-hover:text-orange-600 transition-colors truncate">
-                        {product.name}
-                      </p>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold text-zinc-900">
-                          {formatPrice(product.price)}
-                        </span>
-                        {product.compareAtPrice && (
-                          <span className="text-xs text-zinc-400 line-through">
-                            {formatPrice(product.compareAtPrice)}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </Link>
-                );
-              })}
+              {results.map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
             </div>
           )}
         </>

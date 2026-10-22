@@ -38,9 +38,9 @@ export default function Pagination({
   pageSize: number;
 }) {
   const { query, hrefFor, update } = useCollection();
-  if (totalPages <= 1) return null;
+  if (total === 0) return null;
 
-  const current = Math.min(query.page, totalPages);
+  const current = Math.min(Math.max(1, query.page), totalPages);
   const from = (page - 1) * pageSize + 1;
   const to = Math.min(page * pageSize, total);
 
@@ -56,17 +56,17 @@ export default function Pagination({
       className="mt-10 sm:mt-14 flex flex-col items-center gap-4"
     >
       <div className="flex items-center gap-1 sm:gap-1.5">
-        {current > 1 ? (
+        {totalPages > 1 && current > 1 ? (
           <Link
             href={hrefFor({ page: current - 1 })}
             onClick={(e) => go(e, current - 1)}
             aria-label="Previous page"
-            className={`${baseItem} border border-zinc-200 text-zinc-700 hover:border-zinc-900`}
+            className={`${baseItem} border border-zinc-200 text-zinc-700 hover:border-zinc-900 cursor-pointer`}
           >
             <ChevronLeft className="w-4 h-4" />
           </Link>
         ) : (
-          <span aria-hidden className={`${baseItem} border border-zinc-100 text-zinc-300`}>
+          <span aria-hidden className={`${baseItem} border border-zinc-100 text-zinc-300 opacity-60 cursor-not-allowed`}>
             <ChevronLeft className="w-4 h-4" />
           </span>
         )}
@@ -90,24 +90,24 @@ export default function Pagination({
               href={hrefFor({ page: item })}
               onClick={(e) => go(e, item)}
               aria-label={`Page ${item}`}
-              className={`${baseItem} text-zinc-700 hover:bg-zinc-100`}
+              className={`${baseItem} text-zinc-700 hover:bg-zinc-100 cursor-pointer`}
             >
               {item}
             </Link>
           ),
         )}
 
-        {current < totalPages ? (
+        {totalPages > 1 && current < totalPages ? (
           <Link
             href={hrefFor({ page: current + 1 })}
             onClick={(e) => go(e, current + 1)}
             aria-label="Next page"
-            className={`${baseItem} border border-zinc-200 text-zinc-700 hover:border-zinc-900`}
+            className={`${baseItem} border border-zinc-200 text-zinc-700 hover:border-zinc-900 cursor-pointer`}
           >
             <ChevronRight className="w-4 h-4" />
           </Link>
         ) : (
-          <span aria-hidden className={`${baseItem} border border-zinc-100 text-zinc-300`}>
+          <span aria-hidden className={`${baseItem} border border-zinc-100 text-zinc-300 opacity-60 cursor-not-allowed`}>
             <ChevronRight className="w-4 h-4" />
           </span>
         )}

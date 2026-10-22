@@ -1,44 +1,12 @@
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { formatPrice } from "@/lib/format";
 import Link from "next/link";
 import { ChevronRight, Package, MapPin, CreditCard, ArrowLeft } from "lucide-react";
-
-// Dummy order data (same as admin mock data)
-const DUMMY_ORDERS: Record<string, any> = {
-  o1: {
-    orderNumber: "SRG-001001",
-    date: "Oct 1, 2026",
-    status: "delivered",
-    paymentMethod: "UPI",
-    paymentStatus: "paid",
-    customer: { name: "Rahul Sharma", email: "rahul@gmail.com", phone: "+91 98765 43210" },
-    shippingAddress: { line1: "42 MG Road", city: "Bangalore", state: "Karnataka", pincode: "560001" },
-    items: [
-      { name: "Premium Cotton Oxford Shirt", price: 1299, quantity: 2, size: "L", color: "Sky Blue" },
-      { name: "Slim Fit Stretch Jeans", price: 1499, quantity: 1, size: "M", color: "Dark Indigo" },
-    ],
-    subtotal: 4097,
-    shipping: 0,
-    discount: 200,
-    total: 3897,
-  },
-  o2: {
-    orderNumber: "SRG-001002",
-    date: "Oct 2, 2026",
-    status: "shipped",
-    paymentMethod: "Razorpay",
-    paymentStatus: "paid",
-    customer: { name: "Priya Patel", email: "priya.p@gmail.com", phone: "+91 87654 32109" },
-    shippingAddress: { line1: "15 Nehru Nagar", city: "Ahmedabad", state: "Gujarat", pincode: "380015" },
-    items: [
-      { name: "Classic Polo T-Shirt", price: 799, quantity: 3, size: "M", color: "Navy" },
-    ],
-    subtotal: 2397,
-    shipping: 99,
-    discount: 0,
-    total: 2496,
-  },
-};
+import connectDB from "@/lib/db";
+import OrderModel from "@/lib/models/Order";
+import { verifySession } from "@/lib/auth/dal";
+import mongoose from "mongoose";
 
 const statusStyles: Record<string, string> = {
   pending: "bg-yellow-50 text-yellow-700 border-yellow-200/50",
@@ -55,16 +23,49 @@ export default async function OrderDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const order = DUMMY_ORDERS[id];
-  if (!order) notFound();
 
   return (
-    <section className="max-w-[1340px] mx-auto px-4 md:px-8 py-8 sm:py-12">
+    <section className="max-w-335 mx-auto px-4 md:px-8 py-8 sm:py-12">
+      <Suspense fallback={<OrderDetailSkeleton />}>
+        <OrderDetailContent id={id} />
+      </Suspense>
+    </section>
+  );
+}
+
+async function OrderDetailContent({ id }: { id: string }) {
+  const session = await verifySession();
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    notFound();
+  }
+
+  await connectDB();
+  const query: Record<string, any> = { _id: id };
+  if (session.role !== "admin") {
+    query.userId = session.userId;
+  }
+
+  const order = await OrderModel.findOne(query).lean();
+  if (!order) notFound();
+
+  const date = new Date(order.createdAt).toLocaleDateString("en-IN", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+
+  return (
+    <>
       {/* Breadcrumbs */}
       <div className="flex items-center gap-2 text-sm text-zinc-400 mb-6">
-        <Link href="/profile" className="hover:text-zinc-900 transition-colors">My Account</Link>
+        <Link href="/profile" className="hover:text-zinc-900 transition-colors">
+          My Account
+        </Link>
         <ChevronRight className="w-3.5 h-3.5" />
-        <Link href="/profile/orders" className="hover:text-zinc-900 transition-colors">Orders</Link>
+        <Link href="/profile/orders" className="hover:text-zinc-900 transition-colors">
+          Orders
+        </Link>
         <ChevronRight className="w-3.5 h-3.5" />
         <span className="text-zinc-900 font-medium">{order.orderNumber}</span>
       </div>
@@ -80,7 +81,7 @@ export default async function OrderDetailPage({
           </Link>
           <div>
             <h1 className="text-2xl font-bold text-zinc-900">Order {order.orderNumber}</h1>
-            <p className="text-sm text-zinc-400 mt-0.5">Placed on {order.date}</p>
+            <p className="text-sm text-zinc-400 mt-0.5">Placed on {date}</p>
           </div>
         </div>
         <span
@@ -98,14 +99,18 @@ export default async function OrderDetailPage({
           <div className="p-5 sm:p-6 border-b border-zinc-100 bg-zinc-50/50">
             <h2 className="font-semibold text-zinc-900 flex items-center gap-2">
               <Package className="w-4 h-4 text-zinc-500" />
-              Order Items
+              Order Items ({order.items.length})
             </h2>
           </div>
           <div className="divide-y divide-zinc-100">
             {order.items.map((item: any, i: number) => (
               <div key={i} className="p-5 sm:p-6 flex items-center gap-4">
-                <div className="w-16 h-20 rounded-lg bg-zinc-100 shrink-0 flex items-center justify-center">
-                  <Package className="w-6 h-6 text-zinc-300" />
+                <div className="w-16 h-20 rounded-lg bg-zinc-100 shrink-0 overflow-hidden flex items-center justify-center">
+                  {item.image ? (
+                    <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <Package className="w-6 h-6 text-zinc-300" />
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-zinc-900 text-sm">{item.name}</p>
@@ -132,7 +137,7 @@ export default async function OrderDetailPage({
             </div>
             {order.discount > 0 && (
               <div className="flex justify-between text-emerald-600">
-                <span>Discount</span>
+                <span>Discount {order.couponCode ? `(${order.couponCode})` : ""}</span>
                 <span>-{formatPrice(order.discount)}</span>
               </div>
             )}
@@ -152,10 +157,14 @@ export default async function OrderDetailPage({
               Shipping Address
             </h3>
             <div className="text-sm text-zinc-600 space-y-1">
-              <p className="font-medium text-zinc-900">{order.customer.name}</p>
+              <p className="font-medium text-zinc-900">
+                {order.customer.firstName} {order.customer.lastName}
+              </p>
               <p>{order.shippingAddress.line1}</p>
-              <p>{order.shippingAddress.city}, {order.shippingAddress.state}</p>
-              <p>{order.shippingAddress.pincode}</p>
+              {order.shippingAddress.line2 && <p>{order.shippingAddress.line2}</p>}
+              <p>
+                {order.shippingAddress.city}, {order.shippingAddress.state} - {order.shippingAddress.pincode}
+              </p>
               <p className="text-zinc-400 mt-2">{order.customer.phone}</p>
             </div>
           </div>
@@ -169,16 +178,31 @@ export default async function OrderDetailPage({
             <div className="text-sm space-y-2">
               <div className="flex justify-between">
                 <span className="text-zinc-400">Method</span>
-                <span className="font-medium text-zinc-900">{order.paymentMethod}</span>
+                <span className="font-medium text-zinc-900">{order.paymentMethod || "COD"}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-zinc-400">Status</span>
-                <span className="font-medium text-emerald-600 capitalize">{order.paymentStatus}</span>
+                <span className="font-medium text-emerald-600 capitalize">{order.paymentStatus || "pending"}</span>
               </div>
             </div>
           </div>
         </div>
       </div>
-    </section>
+    </>
+  );
+}
+
+function OrderDetailSkeleton() {
+  return (
+    <div className="space-y-6 animate-pulse">
+      <div className="h-8 bg-zinc-100 rounded-lg w-48" />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2 h-96 bg-zinc-100 rounded-2xl" />
+        <div className="space-y-6">
+          <div className="h-48 bg-zinc-100 rounded-2xl" />
+          <div className="h-32 bg-zinc-100 rounded-2xl" />
+        </div>
+      </div>
+    </div>
   );
 }

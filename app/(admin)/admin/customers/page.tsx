@@ -1,26 +1,38 @@
-import { requireAuth } from "@/lib/auth/session";
-import { MOCK_CUSTOMERS } from "@/lib/data/admin/mock-data";
+import { requireAdmin } from "@/lib/auth/dal";
+import connectDB from "@/lib/db";
+import UserModel from "@/lib/models/User";
 import { formatPrice } from "@/lib/format";
 import { Search, Mail, Phone, User } from "lucide-react";
+
+export const instant = false;
 
 export default async function AdminCustomersPage({
   searchParams,
 }: {
   searchParams: Promise<{ q?: string }>;
 }) {
-  await requireAuth();
+  await requireAdmin();
 
   const params = await searchParams;
   const q = (params.q || "").toLowerCase();
 
-  const customers = q
-    ? MOCK_CUSTOMERS.filter(
-        (c) =>
-          c.name.toLowerCase().includes(q) ||
-          c.email.toLowerCase().includes(q) ||
-          c.phone.toLowerCase().includes(q)
-      )
-    : MOCK_CUSTOMERS;
+  // Direct DB call in Server Component
+  await connectDB();
+
+  const filter: Record<string, unknown> = { role: "customer" };
+  if (q) {
+    filter.$or = [
+      { firstName: { $regex: q, $options: "i" } },
+      { lastName: { $regex: q, $options: "i" } },
+      { email: { $regex: q, $options: "i" } },
+      { phone: { $regex: q, $options: "i" } },
+    ];
+  }
+
+  const customers = await UserModel.find(filter)
+    .select("-password")
+    .sort({ createdAt: -1 })
+    .lean();
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -71,47 +83,50 @@ export default async function AdminCustomersPage({
                   </td>
                 </tr>
               ) : (
-                customers.map((customer) => (
-                  <tr key={customer.id} className="hover:bg-zinc-50/50 transition-colors group">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-100 to-purple-100 flex items-center justify-center text-indigo-700 font-bold border border-indigo-200/50 shadow-sm shrink-0">
-                          {customer.name.charAt(0).toUpperCase()}
+                customers.map((customer) => {
+                  const fullName = `${customer.firstName} ${customer.lastName}`;
+                  return (
+                    <tr key={customer._id.toString()} className="hover:bg-zinc-50/50 transition-colors group">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 rounded-full bg-linear-to-tr from-indigo-100 to-purple-100 flex items-center justify-center text-indigo-700 font-bold border border-indigo-200/50 shadow-sm shrink-0">
+                            {customer.firstName.charAt(0).toUpperCase()}
+                          </div>
+                          <div className="font-semibold text-zinc-900 group-hover:text-indigo-600 transition-colors">
+                            {fullName}
+                          </div>
                         </div>
-                        <div className="font-semibold text-zinc-900 group-hover:text-indigo-600 transition-colors">
-                          {customer.name}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex flex-col gap-1.5">
+                          <div className="flex items-center gap-2 text-zinc-600">
+                            <Mail className="w-3.5 h-3.5 text-zinc-400" />
+                            <span className="text-xs font-medium">{customer.email}</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-zinc-600">
+                            <Phone className="w-3.5 h-3.5 text-zinc-400" />
+                            <span className="text-xs font-medium">{customer.phone}</span>
+                          </div>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex flex-col gap-1.5">
-                        <div className="flex items-center gap-2 text-zinc-600">
-                          <Mail className="w-3.5 h-3.5 text-zinc-400" />
-                          <span className="text-xs font-medium">{customer.email}</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-zinc-600">
-                          <Phone className="w-3.5 h-3.5 text-zinc-400" />
-                          <span className="text-xs font-medium">{customer.phone}</span>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <span className="inline-flex items-center justify-center min-w-[24px] h-6 px-2 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 shadow-sm border border-indigo-100">
-                        {customer.totalOrders}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right font-semibold text-zinc-900">
-                      {formatPrice(customer.totalSpent)}
-                    </td>
-                    <td className="px-6 py-4 text-zinc-500 font-medium">
-                      {new Date(customer.createdAt).toLocaleDateString("en-IN", {
-                        day: "numeric",
-                        month: "short",
-                        year: "numeric",
-                      })}
-                    </td>
-                  </tr>
-                ))
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <span className="inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 shadow-sm border border-indigo-100">
+                          {customer.totalOrders || 0}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-right font-semibold text-zinc-900">
+                        {formatPrice(customer.totalSpent || 0)}
+                      </td>
+                      <td className="px-6 py-4 text-zinc-500 font-medium">
+                        {new Date(customer.createdAt).toLocaleDateString("en-IN", {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                        })}
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>

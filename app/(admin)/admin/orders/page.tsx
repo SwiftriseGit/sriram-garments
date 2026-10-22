@@ -1,33 +1,52 @@
-import { requireAuth } from "@/lib/auth/session";
-import { MOCK_ORDERS } from "@/lib/data/admin/mock-data";
+import { requireAdmin } from "@/lib/auth/dal";
+import connectDB from "@/lib/db";
+import OrderModel from "@/lib/models/Order";
 import { formatPrice } from "@/lib/format";
 import Link from "next/link";
 import { Search, Eye, Filter, ShoppingCart } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+export const instant = false;
 
 export default async function AdminOrdersPage({
   searchParams,
 }: {
   searchParams: Promise<{ status?: string; q?: string }>;
 }) {
-  await requireAuth();
+  await requireAdmin();
 
   const params = await searchParams;
   const statusFilter = params.status || "";
   const q = (params.q || "").toLowerCase();
 
-  let orders = MOCK_ORDERS;
+  // Direct DB call in Server Component
+  await connectDB();
+
+  const filter: Record<string, unknown> = {};
   if (statusFilter) {
-    orders = orders.filter((o) => o.status === statusFilter);
+    filter.status = statusFilter;
   }
   if (q) {
-    orders = orders.filter(
-      (o) =>
-        o.orderNumber.toLowerCase().includes(q) ||
-        o.customer.name.toLowerCase().includes(q) ||
-        o.customer.email.toLowerCase().includes(q)
-    );
+    filter.$or = [
+      { orderNumber: { $regex: q, $options: "i" } },
+      { "customer.firstName": { $regex: q, $options: "i" } },
+      { "customer.lastName": { $regex: q, $options: "i" } },
+      { "customer.email": { $regex: q, $options: "i" } },
+    ];
   }
+
+  const orders = await OrderModel.find(filter)
+    .sort({ createdAt: -1 })
+    .lean();
+
+  // Get total counts for filter tabs
+  const allOrdersCount = await OrderModel.countDocuments();
+  const statusCounts = await OrderModel.aggregate([
+    { $group: { _id: "$status", count: { $sum: 1 } } },
+  ]);
+  const statusCountMap = Object.fromEntries(
+    statusCounts.map((s) => [s._id, s.count])
+  );
 
   const statuses = ["pending", "confirmed", "processing", "shipped", "delivered", "cancelled"];
 
@@ -51,10 +70,10 @@ export default async function AdminOrdersPage({
               : "bg-white text-zinc-600 hover:bg-zinc-50 border border-zinc-200/60"
           )}
         >
-          All ({MOCK_ORDERS.length})
+          All ({allOrdersCount})
         </Link>
         {statuses.map((s) => {
-          const count = MOCK_ORDERS.filter((o) => o.status === s).length;
+          const count = statusCountMap[s] || 0;
           if (count === 0) return null;
           return (
             <Link
@@ -88,10 +107,6 @@ export default async function AdminOrdersPage({
               />
             </form>
           </div>
-          <button className="flex items-center gap-2 px-4 py-2.5 bg-white border border-zinc-200 rounded-xl text-sm font-medium text-zinc-700 hover:bg-zinc-50 shadow-sm transition-colors whitespace-nowrap">
-            <Filter className="w-4 h-4 text-zinc-400" />
-            More Filters
-          </button>
         </div>
 
         <div className="overflow-x-auto">
@@ -119,7 +134,7 @@ export default async function AdminOrdersPage({
                 </tr>
               ) : (
                 orders.map((order) => (
-                  <tr key={order.id} className="hover:bg-zinc-50/50 transition-colors group">
+                  <tr key={order._id.toString()} className="hover:bg-zinc-50/50 transition-colors group">
                     <td className="px-6 py-4">
                       <div className="font-semibold text-zinc-900 group-hover:text-indigo-600 transition-colors">
                         {order.orderNumber}
@@ -127,7 +142,9 @@ export default async function AdminOrdersPage({
                       <div className="text-xs text-zinc-500 mt-0.5">{order.items.length} item(s)</div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="font-medium text-zinc-800">{order.customer.name}</div>
+                      <div className="font-medium text-zinc-800">
+                        {order.customer.firstName} {order.customer.lastName}
+                      </div>
                       <div className="text-xs text-zinc-500 mt-0.5">{order.customer.email}</div>
                     </td>
                     <td className="px-6 py-4">
@@ -149,7 +166,7 @@ export default async function AdminOrdersPage({
                     </td>
                     <td className="px-6 py-4 text-right">
                       <Link
-                        href={`/admin/orders/${order.id}`}
+                        href={`/admin/orders/${order._id}`}
                         className="p-2 inline-flex text-zinc-400 hover:text-indigo-600 transition-colors rounded-lg hover:bg-indigo-50"
                       >
                         <Eye className="w-4 h-4" />

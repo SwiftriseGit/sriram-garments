@@ -19,7 +19,9 @@ export async function generateStaticParams() {
 
 export async function generateMetadata({
   params,
-}: PageProps<"/products/[slug]">): Promise<Metadata> {
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
   const { slug } = await params;
   // Same cached call as the page below → no duplicate work
   const product = await getProductBySlug(slug);
@@ -39,7 +41,11 @@ const PERKS = [
   { icon: Banknote, title: "Cash on delivery", text: "Available across India" },
 ];
 
-export default async function ProductPage({ params }: PageProps<"/products/[slug]">) {
+export default async function ProductPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
   const { slug } = await params;
   const product = await getProductBySlug(slug);
 
@@ -75,7 +81,7 @@ export default async function ProductPage({ params }: PageProps<"/products/[slug
   };
 
   return (
-    <section className="max-w-[1340px] mx-auto px-3 sm:px-4 md:px-8 py-6 sm:py-8">
+    <section className="max-w-335 mx-auto px-3 sm:px-4 md:px-8 py-6 sm:py-8">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }}
@@ -194,7 +200,7 @@ export default async function ProductPage({ params }: PageProps<"/products/[slug
               <ul className="mt-3 space-y-1.5">
                 {product.highlights.map((point) => (
                   <li key={point} className="flex items-start gap-2">
-                    <span className="mt-[7px] w-1 h-1 rounded-full bg-orange-500 shrink-0" />
+                    <span className="mt-1.75 w-1 h-1 rounded-full bg-orange-500 shrink-0" />
                     {point}
                   </li>
                 ))}

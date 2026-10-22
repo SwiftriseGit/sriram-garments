@@ -1,4 +1,4 @@
-import { requireAuth } from "@/lib/auth/session";
+import { requireAdmin } from "@/lib/auth/dal";
 import AdminShell from "@/components/admin/AdminShell";
 
 export const instant = false;
@@ -8,7 +8,7 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const session = await requireAuth();
+  const session = await requireAdmin();
 
   return (
     <AdminShell session={session}>

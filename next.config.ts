@@ -4,6 +4,23 @@ const nextConfig: NextConfig = {
   reactCompiler: true,
   cacheComponents: true,
 
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "**.r2.cloudflarestorage.com",
+      },
+      {
+        protocol: "https",
+        hostname: "**.r2.dev",
+      },
+      {
+        protocol: "https",
+        hostname: "images.unsplash.com",
+      },
+    ],
+  },
+
   // Custom cacheLife profiles for fine-grained SWR boundaries
   cacheLife: {
     // Product catalog: 5 min fresh → 15 min SWR window → 24 h hard expire

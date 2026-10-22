@@ -1,7 +1,8 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 
 // ──────────────────────────────────────────────
-// Cart Store
+// Cart Store — persisted to localStorage
 // ──────────────────────────────────────────────
 
 export interface CartItem {
@@ -34,47 +35,56 @@ interface CartState {
   subtotal: () => number;
 }
 
-export const useCartStore = create<CartState>((set, get) => ({
-  items: [],
-  isOpen: false,
+export const useCartStore = create<CartState>()(
+  persist(
+    (set, get) => ({
+      items: [],
+      isOpen: false,
 
-  addItem: (item) =>
-    set((state) => {
-      const existing = state.items.find(
-        (i) => i.id === item.id && i.size === item.size
-      );
-      if (existing) {
-        return {
-          items: state.items.map((i) =>
-            i.id === item.id && i.size === item.size
-              ? { ...i, quantity: i.quantity + item.quantity }
-              : i
-          ),
-        };
-      }
-      return { items: [...state.items, item] };
+      addItem: (item) =>
+        set((state) => {
+          const existing = state.items.find(
+            (i) => i.id === item.id && i.size === item.size
+          );
+          if (existing) {
+            return {
+              items: state.items.map((i) =>
+                i.id === item.id && i.size === item.size
+                  ? { ...i, quantity: i.quantity + item.quantity }
+                  : i
+              ),
+            };
+          }
+          return { items: [...state.items, item] };
+        }),
+
+      removeItem: (id, size) =>
+        set((state) => ({
+          items: state.items.filter((i) => !(i.id === id && i.size === size)),
+        })),
+
+      updateQuantity: (id, size, quantity) =>
+        set((state) => ({
+          items:
+            quantity <= 0
+              ? state.items.filter((i) => !(i.id === id && i.size === size))
+              : state.items.map((i) =>
+                  i.id === id && i.size === size ? { ...i, quantity } : i
+                ),
+        })),
+
+      clearCart: () => set({ items: [] }),
+      toggleCart: () => set((state) => ({ isOpen: !state.isOpen })),
+      openCart: () => set({ isOpen: true }),
+      closeCart: () => set({ isOpen: false }),
+
+      totalItems: () => get().items.reduce((sum, i) => sum + i.quantity, 0),
+      subtotal: () =>
+        get().items.reduce((sum, i) => sum + i.price * i.quantity, 0),
     }),
-
-  removeItem: (id, size) =>
-    set((state) => ({
-      items: state.items.filter((i) => !(i.id === id && i.size === size)),
-    })),
-
-  updateQuantity: (id, size, quantity) =>
-    set((state) => ({
-      items:
-        quantity <= 0
-          ? state.items.filter((i) => !(i.id === id && i.size === size))
-          : state.items.map((i) =>
-              i.id === id && i.size === size ? { ...i, quantity } : i
-            ),
-    })),
-
-  clearCart: () => set({ items: [] }),
-  toggleCart: () => set((state) => ({ isOpen: !state.isOpen })),
-  openCart: () => set({ isOpen: true }),
-  closeCart: () => set({ isOpen: false }),
-
-  totalItems: () => get().items.reduce((sum, i) => sum + i.quantity, 0),
-  subtotal: () => get().items.reduce((sum, i) => sum + i.price * i.quantity, 0),
-}));
+    {
+      name: "sriram-cart",
+      partialize: (state) => ({ items: state.items }),
+    }
+  )
+);

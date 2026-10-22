@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import { FaInstagram, FaFacebook, FaYoutube } from "react-icons/fa";
 
 export default function SiteFooter() {
@@ -6,19 +7,19 @@ export default function SiteFooter() {
     <footer className="w-full">
       {/* Main Footer Content */}
       <div className="bg-[#f9f9f9] py-10 sm:py-14">
-        <div className="max-w-[1340px] mx-auto px-3 sm:px-4 md:px-8">
+        <div className="max-w-335 mx-auto px-3 sm:px-4 md:px-8">
           <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-5 gap-8 sm:gap-10">
             {/* Logo Area */}
             <div className="col-span-2 sm:col-span-2 lg:col-span-2">
-              <a href="/" className="inline-block mb-4 sm:mb-6">
+              <Link href="/" className="inline-block mb-4 sm:mb-6">
                 <Image
                   src="/logo (2).png"
                   alt="SriRam Garments"
-                  width={160}
-                  height={54}
-                  className="h-10 sm:h-12 w-auto object-contain"
+                  width={240}
+                  height={80}
+                  className="h-14 sm:h-16 lg:h-20 w-auto object-contain"
                 />
-              </a>
+              </Link>
               <p className="text-[12px] sm:text-[13px] text-zinc-500 font-medium leading-relaxed max-w-sm">
                 Quality garments designed for comfort and style. Experience the perfect blend of tradition and modern fashion with SriRam Garments.
               </p>

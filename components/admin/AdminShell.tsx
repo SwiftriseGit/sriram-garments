@@ -3,19 +3,23 @@
 import { useState } from "react";
 import AdminSidebar from "./AdminSidebar";
 import { Menu, User } from "lucide-react";
-import type { AdminSession } from "@/lib/auth/session";
+
+interface AdminSessionInfo {
+  firstName: string;
+  role: string;
+}
 
 export default function AdminShell({
   children,
   session,
 }: {
   children: React.ReactNode;
-  session: AdminSession;
+  session: AdminSessionInfo;
 }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   return (
-    <div className="flex h-[100dvh] w-full bg-[#F8F9FC] overflow-hidden">
+    <div className="flex h-dvh w-full bg-[#F8F9FC] overflow-hidden">
       <AdminSidebar
         role={session.role}
         isOpen={isMobileMenuOpen}
@@ -32,9 +36,9 @@ export default function AdminShell({
           </button>
           <div className="flex items-center gap-2">
             <div className="text-right">
-              <div className="text-sm font-semibold text-zinc-900">{session.name}</div>
+              <div className="text-sm font-semibold text-zinc-900">{session.firstName}</div>
             </div>
-            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-100 to-purple-100 border border-indigo-200 flex items-center justify-center text-indigo-600">
+            <div className="w-8 h-8 rounded-full bg-linear-to-tr from-indigo-100 to-purple-100 border border-indigo-200 flex items-center justify-center text-indigo-600">
               <User className="w-4 h-4" />
             </div>
           </div>

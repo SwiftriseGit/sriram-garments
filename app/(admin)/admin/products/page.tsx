@@ -1,24 +1,36 @@
-import { requireAuth } from "@/lib/auth/session";
-import { MOCK_PRODUCTS } from "@/lib/data/admin/mock-data";
+import { requireAdmin } from "@/lib/auth/dal";
+import connectDB from "@/lib/db";
+import ProductModel from "@/lib/models/Product";
 import Link from "next/link";
 import { Plus, Search, Edit, Trash2, Package } from "lucide-react";
 import { formatPrice } from "@/lib/format";
+import { deleteProductAction } from "@/actions/products";
+export const instant = false;
 
 export default async function AdminProductsPage({
   searchParams,
 }: {
   searchParams: Promise<{ q?: string }>;
 }) {
-  await requireAuth();
+  await requireAdmin();
 
   const params = await searchParams;
   const q = (params.q || "").toLowerCase();
 
-  const products = q
-    ? MOCK_PRODUCTS.filter((p) =>
-        p.name.toLowerCase().includes(q) || p.category.toLowerCase().includes(q)
-      )
-    : MOCK_PRODUCTS;
+  // Direct DB call in Server Component — no fetch('/api/...') needed
+  await connectDB();
+
+  const filter: Record<string, unknown> = {};
+  if (q) {
+    filter.$or = [
+      { name: { $regex: q, $options: "i" } },
+      { category: { $regex: q, $options: "i" } },
+    ];
+  }
+
+  const products = await ProductModel.find(filter)
+    .sort({ createdAt: -1 })
+    .lean();
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -78,74 +90,93 @@ export default async function AdminProductsPage({
                   </td>
                 </tr>
               ) : (
-                products.map((product) => (
-                  <tr key={product.id} className="hover:bg-zinc-50/50 transition-colors group">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-4">
-                        <div
-                          className="w-12 h-12 rounded-xl flex-shrink-0 border border-zinc-200/60 flex items-center justify-center shadow-sm"
-                          style={{ backgroundColor: product.color.hex + "15" }}
-                        >
-                          <div
-                            className="w-full h-full rounded-xl flex items-center justify-center text-sm font-bold"
-                            style={{ color: product.color.hex }}
+                products.map((product) => {
+                  const effectivePrice =
+                    product.isSale && product.salePrice != null
+                      ? product.salePrice
+                      : product.originalPrice;
+
+                  return (
+                    <tr key={product._id.toString()} className="hover:bg-zinc-50/50 transition-colors group">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 rounded-xl flex-shrink-0 border border-zinc-200/60 overflow-hidden shadow-sm">
+                            {product.images?.[0] ? (
+                              <img
+                                src={product.images[0]}
+                                alt={product.name}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div
+                                className="w-full h-full flex items-center justify-center text-sm font-bold"
+                                style={{
+                                  backgroundColor: product.color.hex + "15",
+                                  color: product.color.hex,
+                                }}
+                              >
+                                {product.category.charAt(0).toUpperCase()}
+                              </div>
+                            )}
+                          </div>
+                          <div>
+                            <div className="font-semibold text-zinc-900 group-hover:text-indigo-600 transition-colors">
+                              {product.name}
+                            </div>
+                            <div className="text-xs text-zinc-500 capitalize mt-0.5">{product.category}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        {product.isPublished ? (
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/50 shadow-sm">
+                            Active
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-zinc-50 text-zinc-700 border border-zinc-200/50 shadow-sm">
+                            Draft
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">
+                        {product.stockQuantity === 0 ? (
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-200/50 shadow-sm">Out of stock</span>
+                        ) : product.stockQuantity <= 10 ? (
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200/50 shadow-sm">{product.stockQuantity} left</span>
+                        ) : (
+                          <span className="text-zinc-900 font-medium">{product.stockQuantity} in stock</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="font-semibold text-zinc-900">{formatPrice(effectivePrice)}</div>
+                        {product.isSale && product.salePrice != null && (
+                          <div className="text-xs text-zinc-400 line-through mt-0.5">
+                            {formatPrice(product.originalPrice)}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <Link
+                            href={`/admin/products/${product._id}`}
+                            className="p-2 text-zinc-400 hover:text-indigo-600 transition-colors rounded-lg hover:bg-indigo-50"
                           >
-                            {product.category.charAt(0).toUpperCase()}
-                          </div>
+                            <Edit className="w-4 h-4" />
+                          </Link>
+                          <form action={deleteProductAction}>
+                            <input type="hidden" name="id" value={product._id.toString()} />
+                            <button
+                              type="submit"
+                              className="p-2 text-zinc-400 hover:text-red-600 transition-colors rounded-lg hover:bg-red-50 cursor-pointer"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </form>
                         </div>
-                        <div>
-                          <div className="font-semibold text-zinc-900 group-hover:text-indigo-600 transition-colors">
-                            {product.name}
-                          </div>
-                          <div className="text-xs text-zinc-500 capitalize mt-0.5">{product.category}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      {product.isPublished ? (
-                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/50 shadow-sm">
-                          Active
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-zinc-50 text-zinc-700 border border-zinc-200/50 shadow-sm">
-                          Draft
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">
-                      {product.stockQuantity === 0 ? (
-                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-200/50 shadow-sm">Out of stock</span>
-                      ) : product.stockQuantity <= 10 ? (
-                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200/50 shadow-sm">{product.stockQuantity} left</span>
-                      ) : (
-                        <span className="text-zinc-900 font-medium">{product.stockQuantity} in stock</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="font-semibold text-zinc-900">{formatPrice(product.price)}</div>
-                      {product.compareAtPrice && (
-                        <div className="text-xs text-zinc-400 line-through mt-0.5">
-                          {formatPrice(product.compareAtPrice)}
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <Link
-                          href={`/admin/products/${product.id}`}
-                          className="p-2 text-zinc-400 hover:text-indigo-600 transition-colors rounded-lg hover:bg-indigo-50"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </Link>
-                        <button
-                          className="p-2 text-zinc-400 hover:text-red-600 transition-colors rounded-lg hover:bg-red-50"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>

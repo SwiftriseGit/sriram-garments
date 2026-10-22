@@ -1,5 +1,8 @@
-import { requireAuth } from "@/lib/auth/session";
-import { getDashboardStats } from "@/lib/data/admin/mock-data";
+import { requireAdmin } from "@/lib/auth/dal";
+import connectDB from "@/lib/db";
+import ProductModel from "@/lib/models/Product";
+import OrderModel from "@/lib/models/Order";
+import UserModel from "@/lib/models/User";
 import { formatPrice } from "@/lib/format";
 import {
   Package,
@@ -14,10 +17,64 @@ import {
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
-export default async function AdminDashboardPage() {
-  await requireAuth();
+export const instant = false;
 
-  const stats = getDashboardStats();
+export default async function AdminDashboardPage() {
+  await requireAdmin();
+
+  // Direct DB calls in Server Component
+  await connectDB();
+
+  const [totalProducts, totalCustomers, revenueAgg, recentOrders, topProducts, lowStockProducts] =
+    await Promise.all([
+      ProductModel.countDocuments(),
+      UserModel.countDocuments({ role: "customer" }),
+      OrderModel.aggregate([
+        { $group: { _id: null, total: { $sum: "$total" }, count: { $sum: 1 } } },
+      ]),
+      OrderModel.find().sort({ createdAt: -1 }).limit(5).lean(),
+      ProductModel.find({ isPublished: true })
+        .sort({ salesCount: -1 })
+        .limit(5)
+        .select("name originalPrice salePrice isSale salesCount")
+        .lean(),
+      ProductModel.find({ stockQuantity: { $lte: 10, $gt: 0 } })
+        .sort({ stockQuantity: 1 })
+        .limit(5)
+        .select("name stockQuantity")
+        .lean(),
+    ]);
+
+  const totalRevenue = revenueAgg[0]?.total || 0;
+  const totalOrders = revenueAgg[0]?.count || 0;
+
+  const stats = {
+    totalRevenue,
+    totalOrders,
+    totalProducts,
+    totalCustomers,
+    recentOrders: recentOrders.map((o: any) => ({
+      id: o._id.toString(),
+      orderNumber: o.orderNumber,
+      customer: {
+        name: `${o.shippingAddress?.firstName || ""} ${o.shippingAddress?.lastName || ""}`.trim() || "Customer",
+        email: o.shippingAddress?.email || "—",
+      },
+      status: o.status,
+      total: o.total,
+    })),
+    topProducts: topProducts.map((p: any) => ({
+      id: p._id.toString(),
+      name: p.name,
+      price: p.isSale && p.salePrice ? p.salePrice : p.originalPrice,
+      salesCount: p.salesCount || 0,
+    })),
+    lowStockProducts: lowStockProducts.map((p: any) => ({
+      id: p._id.toString(),
+      name: p.name,
+      stockQuantity: p.stockQuantity,
+    })),
+  };
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -97,25 +154,34 @@ export default async function AdminDashboardPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-50">
-                {stats.recentOrders.map((order) => (
-                  <tr key={order.id} className="hover:bg-zinc-50/50 transition-colors group">
-                    <td className="px-6 py-4">
-                      <span className="font-medium text-zinc-900 group-hover:text-indigo-600 transition-colors">
-                        {order.orderNumber}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="font-medium text-zinc-800">{order.customer.name}</div>
-                      <div className="text-xs text-zinc-500">{order.customer.email}</div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <OrderStatusBadge status={order.status} />
-                    </td>
-                    <td className="px-6 py-4 text-right font-semibold text-zinc-900">
-                      {formatPrice(order.total)}
+                {stats.recentOrders.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="px-6 py-12 text-center text-zinc-400 font-medium">
+                      <ShoppingBag className="w-8 h-8 mx-auto mb-2 text-zinc-300 stroke-1" />
+                      No orders placed yet
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  stats.recentOrders.map((order) => (
+                    <tr key={order.id} className="hover:bg-zinc-50/50 transition-colors group">
+                      <td className="px-6 py-4">
+                        <span className="font-medium text-zinc-900 group-hover:text-indigo-600 transition-colors">
+                          {order.orderNumber}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="font-medium text-zinc-800">{order.customer.name}</div>
+                        <div className="text-xs text-zinc-500">{order.customer.email}</div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <OrderStatusBadge status={order.status} />
+                      </td>
+                      <td className="px-6 py-4 text-right font-semibold text-zinc-900">
+                        {formatPrice(order.total)}
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -135,33 +201,39 @@ export default async function AdminDashboardPage() {
               </div>
             </div>
             <div className="space-y-5 relative z-10">
-              {stats.topProducts.map((product, i) => (
-                <div key={product.id} className="flex items-center gap-4 group">
-                  <div className="w-8 h-8 rounded-full bg-zinc-100 text-zinc-500 font-bold text-xs flex items-center justify-center group-hover:bg-indigo-100 group-hover:text-indigo-600 transition-colors shrink-0">
-                    {i + 1}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-zinc-900 truncate group-hover:text-indigo-600 transition-colors">
-                      {product.name}
-                    </div>
-                    <div className="text-xs text-zinc-500 mt-0.5">
-                      {formatPrice(product.price)}
-                    </div>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <div className="text-sm font-semibold text-zinc-900">
-                      {product.salesCount}
-                    </div>
-                    <div className="text-xs text-zinc-400">sales</div>
-                  </div>
+              {stats.topProducts.length === 0 ? (
+                <div className="py-8 text-center text-zinc-400 text-sm font-medium">
+                  No sales data yet
                 </div>
-              ))}
+              ) : (
+                stats.topProducts.map((product, i) => (
+                  <div key={product.id} className="flex items-center gap-4 group">
+                    <div className="w-8 h-8 rounded-full bg-zinc-100 text-zinc-500 font-bold text-xs flex items-center justify-center group-hover:bg-indigo-100 group-hover:text-indigo-600 transition-colors shrink-0">
+                      {i + 1}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium text-zinc-900 truncate group-hover:text-indigo-600 transition-colors">
+                        {product.name}
+                      </div>
+                      <div className="text-xs text-zinc-500 mt-0.5">
+                        {formatPrice(product.price)}
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div className="text-sm font-semibold text-zinc-900">
+                        {product.salesCount}
+                      </div>
+                      <div className="text-xs text-zinc-400">sales</div>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
 
           {/* Low Stock Alerts */}
           {stats.lowStockProducts.length > 0 && (
-            <div className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200/60 rounded-2xl p-6 shadow-sm">
+            <div className="bg-linear-to-br from-amber-50 to-orange-50 border border-amber-200/60 rounded-2xl p-6 shadow-sm">
               <div className="flex items-center gap-3 mb-5">
                 <div className="p-2 bg-amber-100 rounded-lg text-amber-600">
                   <AlertTriangle className="w-5 h-5" />

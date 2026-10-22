@@ -1,72 +1,77 @@
+import "server-only";
+import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
 
-const COOKIE_NAME = "admin_session";
+// ──────────────────────────────────────────────
+// Session Management — JWT with jose
+// ──────────────────────────────────────────────
 
-export interface AdminSession {
-  id: string;
-  name: string;
+const secretKey = process.env.SESSION_SECRET!;
+const encodedKey = new TextEncoder().encode(secretKey);
+
+const COOKIE_NAME = "session";
+
+export interface SessionPayload {
+  userId: string;
   email: string;
-  role: "owner" | "manager" | "staff";
+  role: "customer" | "admin";
+  firstName: string;
+  expiresAt: Date;
 }
 
-// Hardcoded admin credentials for dev (no DB needed)
-const ADMIN_CREDENTIALS = {
-  email: "admin@sriramgarments.com",
-  password: "admin123",
-  name: "Admin",
-  role: "owner" as const,
-};
+// ── Encrypt payload into a JWT ──
+export async function encrypt(payload: SessionPayload): Promise<string> {
+  return new SignJWT(payload as unknown as Record<string, unknown>)
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime("7d")
+    .sign(encodedKey);
+}
 
-export async function createSession(admin: AdminSession) {
-  // Simple base64 token (sufficient for dev, no jose needed)
-  const payload = JSON.stringify(admin);
-  const token = Buffer.from(payload).toString("base64");
+// ── Decrypt and verify a JWT ──
+export async function decrypt(
+  token: string | undefined = ""
+): Promise<SessionPayload | null> {
+  if (!token) return null;
+  try {
+    const { payload } = await jwtVerify(token, encodedKey, {
+      algorithms: ["HS256"],
+    });
+    return payload as unknown as SessionPayload;
+  } catch {
+    return null;
+  }
+}
+
+// ── Create session cookie after login/signup ──
+export async function createSession(user: {
+  userId: string;
+  email: string;
+  role: "customer" | "admin";
+  firstName: string;
+}) {
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  const session = await encrypt({ ...user, expiresAt });
 
   const cookieStore = await cookies();
-  cookieStore.set(COOKIE_NAME, token, {
+  cookieStore.set(COOKIE_NAME, session, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
+    expires: expiresAt,
     sameSite: "lax",
     path: "/",
-    maxAge: 60 * 60 * 24 * 7,
   });
 }
 
-export async function getSession(): Promise<AdminSession | null> {
-  // Bypassed login: Always return admin session
-  return {
-    id: "admin-1",
-    name: "Admin",
-    email: "admin@sriramgarments.com",
-    role: "owner",
-  };
+// ── Read session from cookie ──
+export async function getSession(): Promise<SessionPayload | null> {
+  const cookieStore = await cookies();
+  const token = cookieStore.get(COOKIE_NAME)?.value;
+  return decrypt(token);
 }
 
-export async function requireAuth(): Promise<AdminSession> {
-  const session = await getSession();
-  return session!;
-}
-
+// ── Destroy session (logout) ──
 export async function destroySession() {
   const cookieStore = await cookies();
   cookieStore.delete(COOKIE_NAME);
-}
-
-export function validateCredentials(
-  email: string,
-  password: string
-): AdminSession | null {
-  if (
-    email.toLowerCase() === ADMIN_CREDENTIALS.email &&
-    password === ADMIN_CREDENTIALS.password
-  ) {
-    return {
-      id: "admin-1",
-      name: ADMIN_CREDENTIALS.name,
-      email: ADMIN_CREDENTIALS.email,
-      role: ADMIN_CREDENTIALS.role,
-    };
-  }
-  return null;
 }

@@ -1,7 +1,8 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 
 // ──────────────────────────────────────────────
-// Wishlist Store
+// Wishlist Store — persisted to localStorage
 // ──────────────────────────────────────────────
 
 export interface WishlistItem {
@@ -24,29 +25,36 @@ interface WishlistState {
   clearWishlist: () => void;
 }
 
-export const useWishlistStore = create<WishlistState>((set, get) => ({
-  items: [],
+export const useWishlistStore = create<WishlistState>()(
+  persist(
+    (set, get) => ({
+      items: [],
 
-  addItem: (item) =>
-    set((state) => {
-      if (state.items.some((i) => i.id === item.id)) return state;
-      return { items: [...state.items, item] };
+      addItem: (item) =>
+        set((state) => {
+          if (state.items.some((i) => i.id === item.id)) return state;
+          return { items: [...state.items, item] };
+        }),
+
+      removeItem: (id) =>
+        set((state) => ({
+          items: state.items.filter((i) => i.id !== id),
+        })),
+
+      toggleItem: (item) =>
+        set((state) => {
+          if (state.items.some((i) => i.id === item.id)) {
+            return { items: state.items.filter((i) => i.id !== item.id) };
+          }
+          return { items: [...state.items, item] };
+        }),
+
+      isWishlisted: (id) => get().items.some((i) => i.id === id),
+
+      clearWishlist: () => set({ items: [] }),
     }),
-
-  removeItem: (id) =>
-    set((state) => ({
-      items: state.items.filter((i) => i.id !== id),
-    })),
-
-  toggleItem: (item) =>
-    set((state) => {
-      if (state.items.some((i) => i.id === item.id)) {
-        return { items: state.items.filter((i) => i.id !== item.id) };
-      }
-      return { items: [...state.items, item] };
-    }),
-
-  isWishlisted: (id) => get().items.some((i) => i.id === id),
-
-  clearWishlist: () => set({ items: [] }),
-}));
+    {
+      name: "sriram-wishlist",
+    }
+  )
+);

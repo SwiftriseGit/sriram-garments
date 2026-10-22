@@ -1,8 +1,9 @@
-import { requireAuth } from "@/lib/auth/session";
+import { requireAdmin } from "@/lib/auth/dal";
 import { Tags } from "lucide-react";
+export const instant = false;
 
 export default async function AdminCategoriesPage() {
-  await requireAuth();
+  await requireAdmin();
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">

@@ -1,10 +1,15 @@
-import mongoose, { Schema, Document, Model } from "mongoose";
+import mongoose, { Schema, Document, Model, Types } from "mongoose";
+
+// ──────────────────────────────────────────────
+// Order Model — EMBEDDED product snapshots
+// ──────────────────────────────────────────────
 
 export interface IOrderItem {
   productId: string;
   name: string;
   slug: string;
   price: number;
+  originalPrice: number;
   quantity: number;
   size: string;
   color: string;
@@ -13,12 +18,15 @@ export interface IOrderItem {
 
 export interface IOrder extends Document {
   orderNumber: string;
+  userId: Types.ObjectId;
   customer: {
-    name: string;
+    firstName: string;
+    lastName: string;
     email: string;
     phone: string;
   };
   shippingAddress: {
+    label?: string;
     line1: string;
     line2?: string;
     city: string;
@@ -29,6 +37,8 @@ export interface IOrder extends Document {
   subtotal: number;
   shipping: number;
   discount: number;
+  couponCode?: string;
+  couponDiscount: number;
   total: number;
   status: "pending" | "confirmed" | "processing" | "shipped" | "delivered" | "cancelled";
   paymentStatus: "pending" | "paid" | "refunded" | "failed";
@@ -44,6 +54,7 @@ const OrderItemSchema = new Schema<IOrderItem>(
     name: { type: String, required: true },
     slug: { type: String, required: true },
     price: { type: Number, required: true },
+    originalPrice: { type: Number, required: true },
     quantity: { type: Number, required: true, min: 1 },
     size: { type: String, required: true },
     color: { type: String, required: true },
@@ -59,12 +70,20 @@ const OrderSchema = new Schema<IOrder>(
       required: true,
       unique: true,
     },
+    userId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+      index: true,
+    },
     customer: {
-      name: { type: String, required: true },
+      firstName: { type: String, required: true },
+      lastName: { type: String, required: true },
       email: { type: String, required: true },
       phone: { type: String, required: true },
     },
     shippingAddress: {
+      label: String,
       line1: { type: String, required: true },
       line2: String,
       city: { type: String, required: true },
@@ -75,6 +94,8 @@ const OrderSchema = new Schema<IOrder>(
     subtotal: { type: Number, required: true },
     shipping: { type: Number, default: 0 },
     discount: { type: Number, default: 0 },
+    couponCode: { type: String, default: null },
+    couponDiscount: { type: Number, default: 0 },
     total: { type: Number, required: true },
     status: {
       type: String,
@@ -100,6 +121,7 @@ OrderSchema.pre("save", async function () {
 });
 
 OrderSchema.index({ status: 1, createdAt: -1 });
+OrderSchema.index({ userId: 1, createdAt: -1 });
 OrderSchema.index({ "customer.email": 1 });
 
 const OrderModel: Model<IOrder> =

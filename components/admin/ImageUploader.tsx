@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef } from "react";
 import { Upload, X, Image as ImageIcon, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { getUploadUrl } from "@/actions/r2";
 
 interface ImageUploaderProps {
   images: string[];
@@ -36,27 +37,68 @@ export default function ImageUploader({
       }
 
       setIsUploading(true);
+      const uploadedUrls: string[] = [];
+
       try {
-        const formData = new FormData();
         for (const file of fileArray) {
-          formData.append("files", file);
+          let fileUrl: string | undefined;
+
+          // 1. Attempt direct presigned URL upload to Cloudflare R2
+          try {
+            const presigned = await getUploadUrl(file.name, file.type);
+            if (presigned.success && presigned.uploadUrl && presigned.fileUrl) {
+              const directRes = await fetch(presigned.uploadUrl, {
+                method: "PUT",
+                body: file,
+                headers: {
+                  "Content-Type": file.type,
+                },
+              });
+              if (directRes.ok) {
+                fileUrl = presigned.fileUrl;
+              }
+            }
+          } catch (directErr) {
+            console.warn(
+              "Direct presigned upload failed (likely CORS or network), falling back to /api/upload:",
+              directErr
+            );
+          }
+
+          // 2. Fallback to /api/upload (server-side stream to Cloudflare R2)
+          if (!fileUrl) {
+            const formData = new FormData();
+            formData.append("files", file);
+
+            const res = await fetch("/api/upload", {
+              method: "POST",
+              body: formData,
+            });
+
+            if (!res.ok) {
+              const data = await res.json();
+              throw new Error(data.error || "Upload failed");
+            }
+
+            const data = await res.json();
+            if (data.urls && data.urls.length > 0) {
+              fileUrl = data.urls[0];
+            }
+          }
+
+          if (fileUrl) {
+            uploadedUrls.push(fileUrl);
+          }
         }
 
-        const res = await fetch("/api/upload", {
-          method: "POST",
-          body: formData,
-        });
-
-        if (!res.ok) {
-          const data = await res.json();
-          throw new Error(data.error || "Upload failed");
+        if (uploadedUrls.length > 0) {
+          onChange([...images, ...uploadedUrls]);
+          toast.success(
+            `${uploadedUrls.length} image${
+              uploadedUrls.length > 1 ? "s" : ""
+            } uploaded to Cloudflare R2`
+          );
         }
-
-        const { urls } = await res.json();
-        onChange([...images, ...urls]);
-        toast.success(
-          `${urls.length} image${urls.length > 1 ? "s" : ""} uploaded`
-        );
       } catch (error: any) {
         toast.error(error.message || "Failed to upload images");
       } finally {

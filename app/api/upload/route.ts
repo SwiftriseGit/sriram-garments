@@ -1,8 +1,6 @@
-import { writeFile, mkdir } from "fs/promises";
-import { join } from "path";
 import { NextRequest, NextResponse } from "next/server";
-
-const UPLOAD_DIR = join(process.cwd(), "public", "uploads");
+import { PutObjectCommand } from "@aws-sdk/client-s3";
+import { r2Client, R2_BUCKET, R2_PREFIX, getR2PublicUrl } from "@/lib/r2";
 
 export async function POST(req: NextRequest) {
   try {
@@ -16,15 +14,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Ensure uploads directory exists
-    await mkdir(UPLOAD_DIR, { recursive: true });
-
     const urls: string[] = [];
 
     for (const file of files) {
       if (!file.type.startsWith("image/")) {
         return NextResponse.json(
-          { error: `Invalid file type: ${file.type}` },
+          { error: `Invalid file type: ${file.type}. Only images are allowed.` },
           { status: 400 }
         );
       }
@@ -32,7 +27,7 @@ export async function POST(req: NextRequest) {
       // Max 5MB per file
       if (file.size > 5 * 1024 * 1024) {
         return NextResponse.json(
-          { error: "File too large. Max 5MB per file." },
+          { error: `File ${file.name} is too large. Max 5MB per file.` },
           { status: 400 }
         );
       }
@@ -40,22 +35,33 @@ export async function POST(req: NextRequest) {
       const bytes = await file.arrayBuffer();
       const buffer = Buffer.from(bytes);
 
-      // Create unique filename
-      const ext = file.name.split(".").pop() || "jpg";
-      const filename = `${Date.now()}-${Math.random()
+      // Create unique object key inside folder prefix (e.g. cloths/...)
+      const sanitizedName = file.name
+        .toLowerCase()
+        .replace(/[^a-z0-9.-]/g, "-")
+        .replace(/-+/g, "-");
+      const key = `${R2_PREFIX}/${Date.now()}-${Math.random()
         .toString(36)
-        .slice(2, 8)}.${ext}`;
-      const filepath = join(UPLOAD_DIR, filename);
+        .slice(2, 8)}-${sanitizedName}`;
 
-      await writeFile(filepath, buffer);
-      urls.push(`/uploads/${filename}`);
+      const command = new PutObjectCommand({
+        Bucket: R2_BUCKET,
+        Key: key,
+        Body: buffer,
+        ContentType: file.type || "image/jpeg",
+      });
+
+      await r2Client.send(command);
+
+      const publicUrl = getR2PublicUrl(key);
+      urls.push(publicUrl);
     }
 
     return NextResponse.json({ urls });
-  } catch (error) {
-    console.error("Upload error:", error);
+  } catch (error: any) {
+    console.error("Cloudflare R2 upload error:", error);
     return NextResponse.json(
-      { error: "Upload failed" },
+      { error: error.message || "Upload failed" },
       { status: 500 }
     );
   }

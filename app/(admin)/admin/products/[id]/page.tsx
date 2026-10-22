@@ -1,24 +1,40 @@
-import { requireAuth } from "@/lib/auth/session";
-import { MOCK_PRODUCTS } from "@/lib/data/admin/mock-data";
+import { requireAdmin } from "@/lib/auth/dal";
+import connectDB from "@/lib/db";
+import ProductModel from "@/lib/models/Product";
 import ProductForm from "@/components/admin/ProductForm";
 import { notFound } from "next/navigation";
+import mongoose from "mongoose";
+
+export const instant = false;
 
 export default async function EditProductPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requireAuth();
+  await requireAdmin();
 
   const { id } = await params;
-  
-  const product = MOCK_PRODUCTS.find((p) => p.id === id);
-  if (!product) notFound();
 
-  // Convert to match the expected format
+  await connectDB();
+
+  let product = null;
+  if (mongoose.isValidObjectId(id)) {
+    product = await ProductModel.findById(id).lean();
+  } else {
+    product = await ProductModel.findOne({ slug: id }).lean();
+  }
+
+  if (!product) {
+    notFound();
+  }
+
+  // Convert Mongo document to plain JSON-serializable object
   const serializableProduct = {
     ...product,
-    _id: product.id,
+    _id: product._id.toString(),
+    createdAt: product.createdAt?.toISOString?.() || null,
+    updatedAt: product.updatedAt?.toISOString?.() || null,
   };
 
   return <ProductForm product={serializableProduct as any} />;

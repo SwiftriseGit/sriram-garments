@@ -1,29 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useActionState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Eye, EyeOff, ArrowLeft } from "lucide-react";
-import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { login } from "@/actions/auth";
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [state, action, pending] = useActionState(login, undefined);
   const router = useRouter();
-
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setIsLoading(true);
-    // Simulate login
-    setTimeout(() => {
-      toast.success("Welcome back!", {
-        description: "You have been logged in successfully.",
-      });
-      setIsLoading(false);
-      router.push("/profile");
-    }, 1000);
-  };
 
   return (
     <div className="min-h-screen flex flex-col justify-between p-4 sm:p-6 md:p-8">
@@ -57,9 +44,16 @@ export default function LoginPage() {
           </p>
         </div>
 
+        {/* Global error message */}
+        {state?.message && (
+          <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl mb-4">
+            {state.message}
+          </div>
+        )}
+
         {/* Form */}
         <form
-          onSubmit={handleSubmit}
+          action={action}
           className="bg-white border border-zinc-200/70 rounded-2xl p-6 sm:p-8 shadow-sm space-y-4 sm:space-y-5"
         >
           <div>
@@ -67,11 +61,15 @@ export default function LoginPage() {
               Email Address
             </label>
             <input
+              name="email"
               type="email"
               required
               placeholder="you@example.com"
               className="w-full px-4 py-2.5 sm:py-3 border border-zinc-200 rounded-xl text-sm focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-all placeholder:text-zinc-400"
             />
+            {state?.errors?.email && (
+              <p className="text-red-500 text-xs mt-1">{state.errors.email[0]}</p>
+            )}
           </div>
 
           <div>
@@ -80,6 +78,7 @@ export default function LoginPage() {
             </label>
             <div className="relative">
               <input
+                name="password"
                 type={showPassword ? "text" : "password"}
                 required
                 placeholder="••••••••"
@@ -94,6 +93,9 @@ export default function LoginPage() {
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
+            {state?.errors?.password && (
+              <p className="text-red-500 text-xs mt-1">{state.errors.password[0]}</p>
+            )}
           </div>
 
           <div className="flex items-center justify-between text-xs sm:text-sm pt-1">
@@ -114,10 +116,10 @@ export default function LoginPage() {
 
           <button
             type="submit"
-            disabled={isLoading}
+            disabled={pending}
             className="w-full bg-zinc-950 text-white py-3 sm:py-3.5 rounded-xl text-xs sm:text-sm font-semibold hover:bg-zinc-800 transition-colors disabled:opacity-50 shadow-sm"
           >
-            {isLoading ? "Signing in..." : "Sign In"}
+            {pending ? "Signing in..." : "Sign In"}
           </button>
         </form>
 

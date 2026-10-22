@@ -1,8 +1,10 @@
-import { requireAuth } from "@/lib/auth/session";
+import { requireAdmin } from "@/lib/auth/dal";
 import ProductForm from "@/components/admin/ProductForm";
 
+export const instant = false;
+
 export default async function NewProductPage() {
-  await requireAuth();
+  await requireAdmin();
 
   return <ProductForm />;
 }

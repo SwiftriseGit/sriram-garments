@@ -22,9 +22,13 @@ export const metadata: Metadata = {
  * The static shell (breadcrumbs + heading) renders immediately; the part that
  * depends on `searchParams` (runtime data) is isolated inside <Suspense>.
  */
-export default function CollectionsPage({ searchParams }: PageProps<"/collections">) {
+export default function CollectionsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   return (
-    <section className="max-w-[1340px] mx-auto px-3 sm:px-4 md:px-8 py-6 sm:py-8">
+    <section className="max-w-335 mx-auto px-3 sm:px-4 md:px-8 py-6 sm:py-8">
       <Breadcrumbs items={[{ label: "Home", href: "/" }, { label: "Shop All" }]} />
 
       <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-zinc-900 tracking-tight mb-5 sm:mb-6">
@@ -41,7 +45,7 @@ export default function CollectionsPage({ searchParams }: PageProps<"/collection
 async function CollectionView({
   searchParams,
 }: {
-  searchParams: PageProps<"/collections">["searchParams"];
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const query = parseCollectionQuery(await searchParams);
 

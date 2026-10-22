@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { AlertTriangle, RefreshCw, Home } from "lucide-react";
 import { toast } from "sonner";
@@ -12,11 +12,17 @@ export default function RootError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const hasToastedRef = useRef(false);
+
   useEffect(() => {
     console.error("[RootError]", error);
-    toast.error("Something went wrong", {
-      description: "An unexpected error occurred. Please try again.",
-    });
+    if (!hasToastedRef.current) {
+      hasToastedRef.current = true;
+      toast.error("Something went wrong", {
+        id: "root-error",
+        description: "An unexpected error occurred. Please try again.",
+      });
+    }
   }, [error]);
 
   return (
