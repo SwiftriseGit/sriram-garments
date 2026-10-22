@@ -48,6 +48,7 @@ interface ProductFormValues {
 export default function ProductForm({ product }: { product?: any }) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [removedImages, setRemovedImages] = useState<string[]>([]);
 
   // Initialize react-hook-form with existing product data or defaults
   const {
@@ -144,6 +145,9 @@ export default function ProductForm({ product }: { product?: any }) {
 
       // Images comma-separated
       formData.append("images", (data.images || []).join(","));
+
+      // Removed images to delete from storage on save
+      formData.append("removedImages", removedImages.join(","));
 
       // Highlights newline-separated
       formData.append("highlights", data.highlights || "");
@@ -420,6 +424,7 @@ export default function ProductForm({ product }: { product?: any }) {
                 <ImageUploader
                   images={field.value || []}
                   onChange={(urls) => field.onChange(urls)}
+                  onRemove={(url) => setRemovedImages((prev) => [...prev, url])}
                   maxFiles={6}
                 />
               )}

@@ -5,6 +5,7 @@ import { updateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import connectDB from "@/lib/db";
 import ProductModel from "@/lib/models/Product";
+import { isR2Image, deleteR2Object } from "@/actions/r2";
 
 export async function deleteProductAction(formData: FormData) {
   await requireAdmin();
@@ -13,6 +14,16 @@ export async function deleteProductAction(formData: FormData) {
   if (!id) throw new Error("Product ID is required");
 
   await connectDB();
+  const product = await ProductModel.findById(id).lean();
+
+  if (product && Array.isArray(product.images)) {
+    for (const imgUrl of product.images) {
+      if (await isR2Image(imgUrl)) {
+        await deleteR2Object(imgUrl);
+      }
+    }
+  }
+
   await ProductModel.findByIdAndDelete(id);
 
   updateTag("products");
@@ -104,12 +115,39 @@ export async function saveProductAction(formData: FormData) {
     couponDiscount,
   };
 
+  // Removed images explicitly tracked from client
+  const removedImagesStr = formData.get("removedImages") as string;
+  const removedImages = removedImagesStr
+    ? removedImagesStr.split(",").map((s) => s.trim()).filter(Boolean)
+    : [];
+
   await connectDB();
 
   if (id) {
+    const existing = await ProductModel.findById(id).lean();
+    if (existing && Array.isArray(existing.images)) {
+      // Find images that were in the product before, but are no longer in the updated images array
+      const deletedImages = existing.images.filter(
+        (oldImg: string) => !images.includes(oldImg)
+      );
+
+      for (const imgUrl of deletedImages) {
+        if (await isR2Image(imgUrl)) {
+          await deleteR2Object(imgUrl);
+        }
+      }
+    }
+
     await ProductModel.findByIdAndUpdate(id, productData);
   } else {
     await ProductModel.create(productData);
+  }
+
+  // Also delete any explicitly removed images that are not in the saved list
+  for (const imgUrl of removedImages) {
+    if (!images.includes(imgUrl) && (await isR2Image(imgUrl))) {
+      await deleteR2Object(imgUrl);
+    }
   }
 
   // Immediate cache invalidation for read-your-own-writes consistency

@@ -8,12 +8,14 @@ import { getUploadUrl } from "@/actions/r2";
 interface ImageUploaderProps {
   images: string[];
   onChange: (images: string[]) => void;
+  onRemove?: (url: string) => void;
   maxFiles?: number;
 }
 
 export default function ImageUploader({
   images,
   onChange,
+  onRemove,
   maxFiles = 6,
 }: ImageUploaderProps) {
   const [isUploading, setIsUploading] = useState(false);
@@ -120,6 +122,10 @@ export default function ImageUploader({
   );
 
   const removeImage = (index: number) => {
+    const targetUrl = images[index];
+    if (targetUrl && onRemove) {
+      onRemove(targetUrl);
+    }
     onChange(images.filter((_, i) => i !== index));
   };
 
