@@ -1,6 +1,5 @@
 import mongoose from "mongoose";
 
-const MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost:27017/sriram_garments";
 
 interface MongooseCache {
   conn: typeof mongoose | null;
@@ -16,8 +15,19 @@ const cached: MongooseCache = (globalThis as any).__mongoose ?? {
 export async function connectDB(): Promise<typeof mongoose> {
   if (cached.conn) return cached.conn;
 
+  const uri = process.env.MONGODB_URI;
+  if (!uri) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error(
+        "Missing MONGODB_URI environment variable! Please configure MONGODB_URI in Vercel Project Settings -> Environment Variables."
+      );
+    }
+  }
+
+  const connectionUri = uri || "mongodb://localhost:27017/sriram_garments";
+
   if (!cached.promise) {
-    cached.promise = mongoose.connect(MONGODB_URI, {
+    cached.promise = mongoose.connect(connectionUri, {
       bufferCommands: false,
     });
   }

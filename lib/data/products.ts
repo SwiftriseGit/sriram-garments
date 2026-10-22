@@ -246,13 +246,18 @@ export async function getAllProductSlugs(): Promise<string[]> {
   cacheLife("catalog");
   cacheTag("products");
 
-  await connectDB();
+  try {
+    await connectDB();
 
-  const docs = await ProductModel.find({ isPublished: true })
-    .select("slug")
-    .lean();
+    const docs = await ProductModel.find({ isPublished: true })
+      .select("slug")
+      .lean();
 
-  return docs.map((d: any) => d.slug);
+    return docs.map((d: any) => d.slug);
+  } catch (error) {
+    console.warn("Failed to fetch product slugs for static pre-rendering, fallback to on-demand generation:", error);
+    return [];
+  }
 }
 
 /** Latest arrivals for home page and new drop feeds */
