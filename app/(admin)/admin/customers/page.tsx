@@ -5,6 +5,7 @@ import { formatPrice } from "@/lib/format";
 import Link from "next/link";
 import { Search, Mail, Phone, User, ShieldCheck, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
+import RoleChangeButton from "@/components/admin/RoleChangeButton";
 
 export const instant = false;
 
@@ -13,7 +14,7 @@ export default async function AdminCustomersPage({
 }: {
   searchParams: Promise<{ q?: string; role?: string }>;
 }) {
-  await requireAdmin();
+  const adminSession = await requireAdmin();
 
   const params = await searchParams;
   const q = (params.q || "").toLowerCase();
@@ -51,7 +52,7 @@ export default async function AdminCustomersPage({
       <div>
         <h1 className="text-3xl font-bold text-zinc-900 tracking-tight">Customers & Users</h1>
         <p className="text-sm text-zinc-500 mt-1 font-medium">
-          View and manage registered customers and administrators ({users.length} {users.length === 1 ? "user" : "users"} shown).
+          View and manage registered customers, assign or change admin roles ({users.length} {users.length === 1 ? "user" : "users"} shown).
         </p>
       </div>
 
@@ -122,12 +123,13 @@ export default async function AdminCustomersPage({
                 <th className="px-6 py-4 text-center">Orders</th>
                 <th className="px-6 py-4 text-right">Total Spent</th>
                 <th className="px-6 py-4">Joined Date</th>
+                <th className="px-6 py-4 text-right">Role Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-50">
               {users.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-16 text-center">
+                  <td colSpan={7} className="px-6 py-16 text-center">
                     <div className="flex flex-col items-center justify-center text-zinc-400">
                       <User className="w-12 h-12 mb-3 text-zinc-300" />
                       <p className="text-sm font-medium">
@@ -142,6 +144,7 @@ export default async function AdminCustomersPage({
                     [user.firstName, user.lastName].filter(Boolean).join(" ") || "User";
                   const initial = (user.firstName?.[0] || user.email?.[0] || "U").toUpperCase();
                   const isAdmin = user.role === "admin";
+                  const isCurrentUser = adminSession.userId === user._id.toString();
 
                   return (
                     <tr key={user._id.toString()} className="hover:bg-zinc-50/50 transition-colors group">
@@ -158,8 +161,13 @@ export default async function AdminCustomersPage({
                             {initial}
                           </div>
                           <div>
-                            <div className="font-semibold text-zinc-900 group-hover:text-indigo-600 transition-colors">
-                              {fullName}
+                            <div className="font-semibold text-zinc-900 group-hover:text-indigo-600 transition-colors flex items-center gap-2">
+                              <span>{fullName}</span>
+                              {isCurrentUser && (
+                                <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-600 border border-zinc-200">
+                                  You
+                                </span>
+                              )}
                             </div>
                             <div className="text-xs text-zinc-400 font-mono">
                               ID: {user._id.toString().slice(-6)}
@@ -213,6 +221,14 @@ export default async function AdminCustomersPage({
                           month: "short",
                           year: "numeric",
                         })}
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <RoleChangeButton
+                          userId={user._id.toString()}
+                          userName={fullName}
+                          currentRole={user.role || "customer"}
+                          isCurrentUser={isCurrentUser}
+                        />
                       </td>
                     </tr>
                   );

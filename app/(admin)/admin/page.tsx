@@ -15,6 +15,7 @@ import {
   ArrowDownRight,
 } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 
 export const instant = false;
@@ -33,11 +34,22 @@ export default async function AdminDashboardPage() {
         { $group: { _id: null, total: { $sum: "$total" }, count: { $sum: 1 } } },
       ]),
       OrderModel.find().sort({ createdAt: -1 }).limit(5).lean(),
-      ProductModel.find({ isPublished: true })
-        .sort({ salesCount: -1 })
-        .limit(5)
-        .select("name originalPrice salePrice isSale salesCount")
-        .lean(),
+      OrderModel.aggregate([
+        { $match: { status: { $ne: "cancelled" } } },
+        { $unwind: "$items" },
+        {
+          $group: {
+            _id: "$items.productId",
+            name: { $first: "$items.name" },
+            price: { $first: "$items.price" },
+            image: { $first: "$items.image" },
+            salesCount: { $sum: "$items.quantity" },
+            revenue: { $sum: { $multiply: ["$items.price", "$items.quantity"] } },
+          },
+        },
+        { $sort: { salesCount: -1, revenue: -1 } },
+        { $limit: 5 },
+      ]),
       ProductModel.find({ stockQuantity: { $lte: 10, $gt: 0 } })
         .sort({ stockQuantity: 1 })
         .limit(5)
@@ -64,10 +76,12 @@ export default async function AdminDashboardPage() {
       total: o.total,
     })),
     topProducts: topProducts.map((p: any) => ({
-      id: p._id.toString(),
+      id: p._id?.toString() || p.name,
       name: p.name,
-      price: p.isSale && p.salePrice ? p.salePrice : p.originalPrice,
+      price: p.price,
+      image: p.image || "",
       salesCount: p.salesCount || 0,
+      revenue: p.revenue || 0,
     })),
     lowStockProducts: lowStockProducts.map((p: any) => ({
       id: p._id.toString(),
@@ -200,30 +214,61 @@ export default async function AdminDashboardPage() {
                 <p className="text-xs text-zinc-500 mt-1">Highest performing products</p>
               </div>
             </div>
-            <div className="space-y-5 relative z-10">
+            <div className="space-y-4 relative z-10">
               {stats.topProducts.length === 0 ? (
                 <div className="py-8 text-center text-zinc-400 text-sm font-medium">
-                  No sales data yet
+                  <TrendingUp className="w-8 h-8 mx-auto mb-2 text-zinc-300 opacity-60" />
+                  <p className="font-semibold text-zinc-600">No verified sales yet</p>
+                  <p className="text-xs text-zinc-400 mt-1">Real-time top sellers will rank here as customer orders are placed.</p>
                 </div>
               ) : (
                 stats.topProducts.map((product, i) => (
-                  <div key={product.id} className="flex items-center gap-4 group">
-                    <div className="w-8 h-8 rounded-full bg-zinc-100 text-zinc-500 font-bold text-xs flex items-center justify-center group-hover:bg-indigo-100 group-hover:text-indigo-600 transition-colors shrink-0">
+                  <div key={product.id} className="flex items-center gap-3.5 group">
+                    <div
+                      className={cn(
+                        "w-7 h-7 rounded-full font-bold text-xs flex items-center justify-center shrink-0 border shadow-xs",
+                        i === 0
+                          ? "bg-amber-100 text-amber-700 border-amber-200"
+                          : i === 1
+                          ? "bg-zinc-100 text-zinc-700 border-zinc-200"
+                          : i === 2
+                          ? "bg-orange-50 text-orange-700 border-orange-200"
+                          : "bg-zinc-50 text-zinc-500 border-zinc-200"
+                      )}
+                    >
                       {i + 1}
                     </div>
+                    {product.image && (
+                      <div className="w-10 h-10 rounded-lg overflow-hidden bg-zinc-100 shrink-0 border border-zinc-200/60 relative">
+                        <Image
+                          src={product.image}
+                          alt={product.name}
+                          fill
+                          className="object-cover"
+                          sizes="40px"
+                        />
+                      </div>
+                    )}
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium text-zinc-900 truncate group-hover:text-indigo-600 transition-colors">
                         {product.name}
                       </div>
-                      <div className="text-xs text-zinc-500 mt-0.5">
-                        {formatPrice(product.price)}
+                      <div className="text-xs text-zinc-500 mt-0.5 flex items-center gap-1.5 flex-wrap">
+                        <span>{formatPrice(product.price)}</span>
+                        {product.revenue > 0 && (
+                          <span className="text-zinc-400 font-mono text-[11px]">
+                            • {formatPrice(product.revenue)} rev
+                          </span>
+                        )}
                       </div>
                     </div>
                     <div className="text-right shrink-0">
                       <div className="text-sm font-semibold text-zinc-900">
                         {product.salesCount}
                       </div>
-                      <div className="text-xs text-zinc-400">sales</div>
+                      <div className="text-xs text-zinc-400">
+                        {product.salesCount === 1 ? "unit sold" : "units sold"}
+                      </div>
                     </div>
                   </div>
                 ))
