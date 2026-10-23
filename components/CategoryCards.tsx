@@ -33,7 +33,7 @@ export default function CategoryCards() {
           </div>
 
           {/* Garments Image */}
-          <div className="absolute right-0 bottom-0 w-[50%] h-[85%] z-0 pointer-events-none">
+          <div className="absolute -right-3 sm:-right-5 bottom-0 w-[50%] h-[85%] z-0 pointer-events-none">
             <Image
               src="/images/neatly-folded-garments.png"
               alt="Men's Collection"
