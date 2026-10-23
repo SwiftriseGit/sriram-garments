@@ -159,9 +159,8 @@ export default function HeroSection() {
                   key={idx}
                   aria-label={`Go to slide ${idx + 1}`}
                   onClick={() => scrollTo(idx)}
-                  className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full transition-colors ${
-                    currentSlide === idx ? "bg-orange-500" : "bg-zinc-300 hover:bg-zinc-400"
-                  }`}
+                  className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full transition-colors ${currentSlide === idx ? "bg-orange-500" : "bg-zinc-300 hover:bg-zinc-400"
+                    }`}
                 />
               ))}
             </div>
