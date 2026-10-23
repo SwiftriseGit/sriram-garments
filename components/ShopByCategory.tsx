@@ -64,7 +64,7 @@ export default function ShopByCategory() {
             className="relative group block cursor-pointer focus:outline-none select-none"
           >
             {/* The Card Box - strictly wraps name, details, and button */}
-            <div className="bg-zinc-100 group-hover:bg-zinc-100/90 rounded-2xl h-[135px] sm:h-[150px] lg:h-[165px] w-[40%] sm:w-[43%] lg:w-[45%] p-3 sm:p-4 flex flex-col justify-between border border-zinc-200/60 group-hover:border-zinc-300 group-hover:shadow-sm transition-all duration-300">
+            <div className="bg-zinc-100 group-hover:bg-zinc-100/90 rounded-2xl h-[135px] sm:h-[150px] lg:h-[165px] w-[calc(40%+5px)] sm:w-[calc(43%+5px)] lg:w-[calc(45%+5px)] p-3 sm:p-4 flex flex-col justify-between border border-zinc-200/60 group-hover:border-zinc-300 group-hover:shadow-sm transition-all duration-300">
               <div>
                 <h3 className="text-xs sm:text-base lg:text-lg font-bold text-zinc-900 group-hover:text-orange-600 transition-colors leading-tight">
                   {cat.name}
