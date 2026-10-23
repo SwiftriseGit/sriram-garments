@@ -9,7 +9,6 @@ import BestSellers from "@/components/BestSellers";
 import SeasonSaleBanner from "@/components/SeasonSaleBanner";
 import Testimonials from "@/components/Testimonials";
 import FollowUs from "@/components/FollowUs";
-import NewsletterBanner from "@/components/NewsletterBanner";
 
 export default function Home() {
   return (
@@ -50,9 +49,6 @@ export default function Home() {
 
       {/* Follow Us */}
       <FollowUs />
-
-      {/* Exclusive Offers & Updates Newsletter (Home Page Only) */}
-      <NewsletterBanner />
     </>
   );
 }

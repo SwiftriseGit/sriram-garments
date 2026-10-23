@@ -1,6 +1,26 @@
 import Image from "next/image";
 import Link from "next/link";
-import { FaInstagram, FaFacebook, FaYoutube } from "react-icons/fa";
+import { FaInstagram, FaFacebook, FaWhatsapp } from "react-icons/fa";
+
+const shopLinks = [
+  { label: "Men", href: "/collections?gender=Men" },
+  { label: "New Arrivals", href: "/collections" },
+  { label: "Offers", href: "/collections" },
+];
+
+const helpLinks = [
+  { label: "Return Policy", href: "/pages/return-policy" },
+  { label: "Privacy Policy", href: "/pages/privacy-policy" },
+  { label: "Size Guide", href: "#" },
+  { label: "FAQ", href: "#" },
+];
+
+const aboutLinks = [
+  { label: "Our Story", href: "/pages/about-us" },
+  { label: "Quality Promise", href: "/pages/about-us" },
+  { label: "Store Locator", href: "#" },
+  { label: "Contact Us", href: "/pages/contact" },
+];
 
 export default function SiteFooter() {
   return (
@@ -25,47 +45,52 @@ export default function SiteFooter() {
               </p>
             </div>
 
-            {/* Links Columns */}
+            {/* Shop Links */}
             <div>
               <h4 className="font-bold text-[14px] sm:text-[15px] text-zinc-900 mb-4 sm:mb-5">Shop</h4>
               <ul className="space-y-2.5 sm:space-y-3">
-                {["Men", "New Arrivals", "Offers"].map((link) => (
-                  <li key={link}>
-                    <a href="#" className="text-[12px] sm:text-[13px] font-medium text-zinc-600 hover:text-orange-500 transition-colors">
-                      {link}
-                    </a>
+                {shopLinks.map((link) => (
+                  <li key={link.label}>
+                    <Link
+                      href={link.href}
+                      className="text-[12px] sm:text-[13px] font-medium text-zinc-600 hover:text-orange-500 transition-colors"
+                    >
+                      {link.label}
+                    </Link>
                   </li>
                 ))}
               </ul>
             </div>
 
+            {/* Help Links (Moved Return Policy & Privacy Policy here, removed Track Order, Shipping Policy, Returns & Exchanges) */}
             <div>
               <h4 className="font-bold text-[14px] sm:text-[15px] text-zinc-900 mb-4 sm:mb-5">Help</h4>
               <ul className="space-y-2.5 sm:space-y-3">
-                {[
-                  "Track Order",
-                  "Returns & Exchanges",
-                  "Shipping Policy",
-                  "Size Guide",
-                  "FAQ",
-                ].map((link) => (
-                  <li key={link}>
-                    <a href="#" className="text-[12px] sm:text-[13px] font-medium text-zinc-600 hover:text-orange-500 transition-colors">
-                      {link}
-                    </a>
+                {helpLinks.map((link) => (
+                  <li key={link.label}>
+                    <Link
+                      href={link.href}
+                      className="text-[12px] sm:text-[13px] font-medium text-zinc-600 hover:text-orange-500 transition-colors"
+                    >
+                      {link.label}
+                    </Link>
                   </li>
                 ))}
               </ul>
             </div>
 
+            {/* About Links */}
             <div>
               <h4 className="font-bold text-[14px] sm:text-[15px] text-zinc-900 mb-4 sm:mb-5">About</h4>
               <ul className="space-y-2.5 sm:space-y-3">
-                {["Our Story", "Quality Promise", "Store Locator", "Contact Us"].map((link) => (
-                  <li key={link}>
-                    <a href="#" className="text-[12px] sm:text-[13px] font-medium text-zinc-600 hover:text-orange-500 transition-colors">
-                      {link}
-                    </a>
+                {aboutLinks.map((link) => (
+                  <li key={link.label}>
+                    <Link
+                      href={link.href}
+                      className="text-[12px] sm:text-[13px] font-medium text-zinc-600 hover:text-orange-500 transition-colors"
+                    >
+                      {link.label}
+                    </Link>
                   </li>
                 ))}
               </ul>
@@ -75,17 +100,45 @@ export default function SiteFooter() {
           {/* Bottom Bar */}
           <div className="border-t border-zinc-200 mt-10 sm:mt-12 pt-5 sm:pt-6 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
             <p className="text-[11px] sm:text-[12px] font-medium text-zinc-500">
-              © 2026 Built by <a href="https://swiftrise.in/" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-700 underline underline-offset-2">Swiftrise Solution Pvt Ltd</a>.
+              © 2026 Built by{" "}
+              <a
+                href="https://swiftrise.in/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:text-blue-700 underline underline-offset-2"
+              >
+                Swiftrise Solution Pvt Ltd
+              </a>
+              .
             </p>
+            {/* Social Icons: Keep Instagram & Facebook, removed YouTube, added WhatsApp */}
             <div className="flex items-center gap-4 text-zinc-500">
-              <a href="#" className="hover:text-zinc-900 transition-colors" aria-label="Instagram">
+              <a
+                href="https://instagram.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-zinc-900 transition-colors"
+                aria-label="Instagram"
+              >
                 <FaInstagram className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
               </a>
-              <a href="#" className="hover:text-zinc-900 transition-colors" aria-label="Facebook">
+              <a
+                href="https://facebook.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-zinc-900 transition-colors"
+                aria-label="Facebook"
+              >
                 <FaFacebook className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
               </a>
-              <a href="#" className="hover:text-zinc-900 transition-colors" aria-label="YouTube">
-                <FaYoutube className="w-4.5 h-4.5 sm:w-5 sm:h-5" />
+              <a
+                href="https://wa.me/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-zinc-900 transition-colors"
+                aria-label="WhatsApp"
+              >
+                <FaWhatsapp className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
               </a>
             </div>
           </div>

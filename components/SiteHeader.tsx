@@ -46,8 +46,6 @@ const navLinks = [
   { label: "Shop All", href: "/collections" },
   { label: "Contact", href: "/pages/contact" },
   { label: "About Us", href: "/pages/about-us" },
-  { label: "Privacy Policy", href: "/pages/privacy-policy" },
-  { label: "Return Policy", href: "/pages/return-policy" },
 ];
 
 interface SessionUser {

@@ -176,6 +176,7 @@ export default async function ProductPage({
 
           <ProductPurchase
             key={`purchase-${product.slug}`}
+            product={product}
             availableSizes={product.sizes}
             inStock={product.inStock}
           />
