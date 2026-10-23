@@ -1,5 +1,8 @@
 "use client";
 
+// Carousel imports kept & commented out for now
+// import { useState, useEffect, useCallback } from "react";
+// import useEmblaCarousel from "embla-carousel-react";
 import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -12,19 +15,87 @@ import {
 } from "lucide-react";
 
 export default function HeroSection() {
+  /*
+  // Carousel State & Navigation (Commented out for now — single banner active)
+  const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true });
+  const [currentSlide, setCurrentSlide] = useState(0);
+
+  const scrollPrev = useCallback(() => {
+    if (emblaApi) emblaApi.scrollPrev();
+  }, [emblaApi]);
+
+  const scrollNext = useCallback(() => {
+    if (emblaApi) emblaApi.scrollNext();
+  }, [emblaApi]);
+
+  const scrollTo = useCallback(
+    (index: number) => {
+      if (emblaApi) emblaApi.scrollTo(index);
+    },
+    [emblaApi]
+  );
+
+  useEffect(() => {
+    if (!emblaApi) return;
+    const onSelect = () => {
+      setCurrentSlide(emblaApi.selectedScrollSnap());
+    };
+    emblaApi.on("select", onSelect);
+    return () => {
+      emblaApi.off("select", onSelect);
+    };
+  }, [emblaApi]);
+
+  // Auto-slide every 5 seconds
+  useEffect(() => {
+    if (!emblaApi) return;
+    const timer = setInterval(() => {
+      emblaApi.scrollNext();
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [emblaApi]);
+  */
+
   return (
     <section className="relative overflow-hidden min-h-[320px] sm:min-h-[380px] md:min-h-[420px] lg:min-h-[500px] bg-[#f0ece5]">
-      {/* Full-width Hero Image — single image, exact original classes & media queries */}
-      <div className="absolute inset-0 z-0 overflow-hidden">
-        <div className="relative w-full h-full">
-          <Image
-            src="/images/hero-banner.png"
-            alt="Fashion collection - Everyday Style for Every You"
-            fill
-            priority
-            className="object-cover object-[40%_top] sm:object-[50%_top] md:object-[65%_top] lg:object-top"
-            sizes="100vw"
-          />
+      {/* Full-width Hero Images — Background Slider */}
+      <div className="absolute inset-0 z-0 overflow-hidden" /* ref={emblaRef} */>
+        <div className="flex w-full h-full">
+          {/* Active Single Slide — exact original classes & media queries */}
+          <div className="relative flex-[0_0_100%] h-full">
+            <Image
+              src="/images/hero-banner.png"
+              alt="Fashion collection - Everyday Style for Every You"
+              fill
+              priority
+              className="object-cover object-[40%_top] sm:object-[50%_top] md:object-[65%_top] lg:object-top"
+              sizes="100vw"
+            />
+          </div>
+
+          {/* Slide 1 (Earthy Men's Wardrobe Banner) — Commented out for now */}
+          {/*
+          <div className="relative flex-[0_0_100%] h-full">
+            <Image
+              src="/images/hero-banner-2.png"
+              alt="Earthy Men's Wardrobe Display"
+              fill
+              className="object-cover object-[50%_top] md:object-[65%_top] lg:object-top"
+              sizes="100vw"
+            />
+          </div>
+          */}
+
+          {/* Slide 2 Placeholder — Commented out for now */}
+          {/*
+          <div className="relative flex-[0_0_100%] h-full bg-[#e5e7f0]">
+            <div className="w-full h-full flex items-center justify-end pr-10 lg:pr-32">
+              <span className="text-4xl lg:text-6xl font-bold text-blue-900/10">
+                Placeholder 3
+              </span>
+            </div>
+          </div>
+          */}
         </div>
       </div>
 
@@ -99,11 +170,14 @@ export default function HeroSection() {
             {/* Slider Dots — Commented out for now */}
             {/*
             <div className="flex gap-2 pt-1 sm:pt-4">
-              {[0, 1].map((idx) => (
+              {[0, 1, 2].map((idx) => (
                 <button
                   key={idx}
                   aria-label={`Go to slide ${idx + 1}`}
-                  className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-orange-500"
+                  onClick={() => scrollTo(idx)}
+                  className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full transition-colors ${
+                    currentSlide === idx ? "bg-orange-500" : "bg-zinc-300 hover:bg-zinc-400"
+                  }`}
                 />
               ))}
             </div>
@@ -118,12 +192,14 @@ export default function HeroSection() {
           <div className="absolute bottom-6 right-6 z-30 flex gap-2">
             <button
               aria-label="Previous"
+              onClick={scrollPrev}
               className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-md hover:bg-zinc-50 transition-colors"
             >
               <ChevronLeft className="w-5 h-5 text-zinc-700" />
             </button>
             <button
               aria-label="Next"
+              onClick={scrollNext}
               className="w-10 h-10 rounded-full bg-orange-500 flex items-center justify-center shadow-md hover:bg-orange-600 transition-colors"
             >
               <ChevronRight className="w-5 h-5 text-white" />
@@ -132,17 +208,19 @@ export default function HeroSection() {
           */}
         </div>
 
-        {/* Mobile Slider Arrows — Commented out for now */}
+        {/* Mobile Slider Arrows (shown only on small screens) — Commented out for now */}
         {/*
         <div className="md:hidden absolute bottom-4 right-4 z-30 flex gap-2">
           <button
             aria-label="Previous"
+            onClick={scrollPrev}
             className="w-9 h-9 rounded-full bg-white flex items-center justify-center shadow-md"
           >
             <ChevronLeft className="w-4 h-4 text-zinc-700" />
           </button>
           <button
             aria-label="Next"
+            onClick={scrollNext}
             className="w-9 h-9 rounded-full bg-orange-500 flex items-center justify-center shadow-md"
           >
             <ChevronRight className="w-4 h-4 text-white" />
