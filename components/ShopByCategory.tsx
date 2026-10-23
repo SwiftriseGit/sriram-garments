@@ -64,14 +64,14 @@ export default function ShopByCategory() {
             className="relative group block cursor-pointer focus:outline-none select-none"
           >
             {/* The Card Box - strictly wraps name, details, and button */}
-            <div className="bg-zinc-100 group-hover:bg-zinc-100/90 rounded-2xl h-[135px] sm:h-[150px] lg:h-[165px] w-[60%] sm:w-[62%] p-3.5 sm:p-5 flex flex-col justify-between border border-zinc-200/60 group-hover:border-zinc-300 group-hover:shadow-sm transition-all duration-300">
+            <div className="bg-zinc-100 group-hover:bg-zinc-100/90 rounded-2xl h-[135px] sm:h-[150px] lg:h-[165px] w-[40%] sm:w-[43%] lg:w-[45%] p-3 sm:p-4 flex flex-col justify-between border border-zinc-200/60 group-hover:border-zinc-300 group-hover:shadow-sm transition-all duration-300">
               <div>
-                <h3 className="text-sm sm:text-base lg:text-lg font-bold text-zinc-900 group-hover:text-orange-600 transition-colors leading-tight">
+                <h3 className="text-xs sm:text-base lg:text-lg font-bold text-zinc-900 group-hover:text-orange-600 transition-colors leading-tight">
                   {cat.name}
                 </h3>
-                <p className="text-[11px] sm:text-[12px] text-zinc-500 mt-1 leading-snug">
+                <p className="text-[10px] sm:text-[12px] text-zinc-500 mt-1 leading-snug">
                   Starting at{" "}
-                  <span className="font-semibold text-zinc-800 block sm:inline">
+                  <span className="font-semibold text-zinc-800 block">
                     {cat.startingPrice}
                   </span>
                 </p>
@@ -86,7 +86,7 @@ export default function ShopByCategory() {
             </div>
 
             {/* Product Image - Outside the border on transparent background, bigger & floating */}
-            <div className="absolute right-0 top-1/2 -translate-y-1/2 w-[54%] sm:w-[56%] lg:w-[58%] h-[120%] sm:h-[130%] lg:h-[135%] z-10 pointer-events-none">
+            <div className="absolute right-0 top-1/2 -translate-y-1/2 w-[58%] sm:w-[60%] lg:w-[62%] h-[120%] sm:h-[130%] lg:h-[135%] z-10 pointer-events-none">
               <Image
                 src={cat.image}
                 alt={cat.alt}
