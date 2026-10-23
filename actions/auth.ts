@@ -79,6 +79,8 @@ export async function signup(
     firstName: user.firstName,
   });
 
+  revalidatePath("/", "layout");
+
   // 5. If called via native HTML form action, redirect
   if (isFormData) {
     redirect("/");
@@ -142,6 +144,8 @@ export async function login(
     role: user.role || "customer",
     firstName: user.firstName,
   });
+
+  revalidatePath("/", "layout");
 
   // 5. If called via native HTML form action, redirect
   if (isFormData) {
