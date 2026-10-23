@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useRef } from "react";
 import Image from "next/image";
 import {
   Sparkles,
@@ -9,14 +9,13 @@ import {
   Trash2,
   Save,
   CheckCircle2,
-  AlertCircle,
-  Eye,
-  ArrowRight,
   Upload,
   Info,
   Layers,
-  Smartphone,
-  Monitor,
+  Scissors,
+  Loader2,
+  Link as LinkIcon,
+  ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";
 import { updateBannerSettings } from "@/actions/banners";
@@ -25,7 +24,8 @@ import {
   ISeasonSaleBannerConfig,
   ICouponCard,
 } from "@/lib/models/BannerSettings";
-import { getUploadUrl } from "@/actions/r2";
+import { getUploadUrl, deleteR2Object } from "@/actions/r2";
+import ImageCropModal from "./ImageCropModal";
 
 interface BannerManagementFormProps {
   initialSettings: {
@@ -45,8 +45,15 @@ export default function BannerManagementForm({
     initialSettings.seasonSaleBanner
   );
   const [activeTab, setActiveTab] = useState<"offer" | "season">("offer");
-  const [previewDevice, setPreviewDevice] = useState<"desktop" | "mobile">("desktop");
+
+  // Cropping State
+  const [isCropModalOpen, setIsCropModalOpen] = useState(false);
+  const [cropImageSrc, setCropImageSrc] = useState<string>("");
+  const [cropFileName, setCropFileName] = useState<string>("");
   const [isUploading, setIsUploading] = useState(false);
+  const [isDeletingImage, setIsDeletingImage] = useState(false);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // ──────────────────────────────────────────────
   // Offer Banner Coupon Handlers (Max 3)
@@ -94,44 +101,77 @@ export default function BannerManagementForm({
   };
 
   // ──────────────────────────────────────────────
-  // Image Upload for Season Sale Banner
+  // Step 1: User selects file -> Open Crop Modal first
   // ──────────────────────────────────────────────
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     if (!file.type.startsWith("image/")) {
-      toast.error("Please upload an image file (PNG, JPG, WebP)");
+      toast.error("Please select a valid image file (PNG, JPG, WebP)");
       return;
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("File is too large. Max allowed size is 5MB.");
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("Image file is too large. Max allowed size is 10MB.");
       return;
     }
 
+    const objectUrl = URL.createObjectURL(file);
+    setCropImageSrc(objectUrl);
+    setCropFileName(file.name);
+    setIsCropModalOpen(true);
+
+    // Reset input so re-selecting same file triggers onChange
+    e.target.value = "";
+  };
+
+  // ──────────────────────────────────────────────
+  // Step 2: User applies crop -> Upload Cropped Blob to R2
+  // ──────────────────────────────────────────────
+  const handleCroppedUpload = async (croppedBlob: Blob) => {
     setIsUploading(true);
     try {
-      // 1. Try presigned R2 upload
-      const presigned = await getUploadUrl(file.name, file.type);
+      const baseName = cropFileName
+        .replace(/\.[^/.]+$/, "")
+        .replace(/[^a-zA-Z0-9_-]/g, "_")
+        .toLowerCase();
+      const generatedName = `banner-${baseName || "promo"}-${Date.now()}.webp`;
+
+      // 1. Request presigned upload URL from R2 server action
+      const presigned = await getUploadUrl(generatedName, "image/webp");
+
       if (presigned.success && presigned.uploadUrl && presigned.fileUrl) {
         const uploadRes = await fetch(presigned.uploadUrl, {
           method: "PUT",
-          body: file,
-          headers: { "Content-Type": file.type },
+          body: croppedBlob,
+          headers: { "Content-Type": "image/webp" },
         });
 
         if (uploadRes.ok) {
-          setSeasonSaleBanner((prev) => ({ ...prev, imageUrl: presigned.fileUrl }));
-          toast.success("Banner image uploaded successfully!");
+          // If replacing an existing R2 image, clean up the previous file
+          if (seasonSaleBanner.imageUrl && seasonSaleBanner.imageUrl !== presigned.fileUrl) {
+            deleteR2Object(seasonSaleBanner.imageUrl).catch(() => {});
+          }
+
+          setSeasonSaleBanner((prev) => ({
+            ...prev,
+            imageUrl: presigned.fileUrl,
+          }));
+          toast.success("Banner image cropped & uploaded to R2 successfully!");
+          setIsCropModalOpen(false);
           setIsUploading(false);
           return;
         }
       }
 
       // 2. Fallback to /api/upload
+      const croppedFile = new File([croppedBlob], generatedName, {
+        type: "image/webp",
+      });
       const formData = new FormData();
-      formData.append("files", file);
+      formData.append("files", croppedFile);
+
       const res = await fetch("/api/upload", {
         method: "POST",
         body: formData,
@@ -144,20 +184,53 @@ export default function BannerManagementForm({
 
       const data = await res.json();
       if (data.urls && data.urls[0]) {
+        if (seasonSaleBanner.imageUrl && seasonSaleBanner.imageUrl !== data.urls[0]) {
+          deleteR2Object(seasonSaleBanner.imageUrl).catch(() => {});
+        }
+
         setSeasonSaleBanner((prev) => ({ ...prev, imageUrl: data.urls[0] }));
-        toast.success("Banner image uploaded successfully!");
+        toast.success("Banner image cropped & uploaded successfully!");
+        setIsCropModalOpen(false);
       }
     } catch (err: any) {
+      console.error("Cropped upload error:", err);
       toast.error(err.message || "Failed to upload image. Please try again.");
     } finally {
       setIsUploading(false);
-      // Reset input value
-      e.target.value = "";
     }
   };
 
   // ──────────────────────────────────────────────
-  // Save Settings Action
+  // Step 3: Remove Image -> Delete from Cloudflare R2
+  // ──────────────────────────────────────────────
+  const handleRemoveImage = async () => {
+    if (!seasonSaleBanner.imageUrl) return;
+
+    setIsDeletingImage(true);
+    try {
+      const targetUrl = seasonSaleBanner.imageUrl;
+      // Call existing deleteR2Object server action
+      const result = await deleteR2Object(targetUrl);
+
+      if (result.success) {
+        toast.success("Image removed and deleted from Cloudflare R2.");
+      } else {
+        toast.warning("Image removed locally. Server note: " + (result.error || "R2 cleanup skipped."));
+      }
+
+      setSeasonSaleBanner((prev) => ({ ...prev, imageUrl: "" }));
+    } catch (err: any) {
+      console.error("Failed to delete image from R2:", err);
+      // Still remove locally so admin can re-upload
+      setSeasonSaleBanner((prev) => ({ ...prev, imageUrl: "" }));
+      toast.error("Removed image from banner.");
+    } finally {
+      setIsDeletingImage(false);
+    }
+  };
+
+  // ──────────────────────────────────────────────
+  // Save Settings to Database
   // ──────────────────────────────────────────────
   const handleSave = () => {
     startTransition(async () => {
@@ -174,28 +247,30 @@ export default function BannerManagementForm({
     });
   };
 
+  const isFullBanner = seasonSaleBanner.bannerType === "full";
+
   return (
-    <div className="space-y-8 animate-in fade-in duration-300">
+    <div className="space-y-6 animate-in fade-in duration-300 max-w-5xl">
       {/* Top Header & Save Button */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-zinc-200">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-zinc-200">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-zinc-900 tracking-tight">
-            Banners &amp; Offers Management
+          <h1 className="text-xl sm:text-2xl font-bold text-zinc-900 tracking-tight">
+            Banners &amp; Offers
           </h1>
-          <p className="text-sm text-zinc-500 mt-1">
-            Configure homepage promotional banners, coupon codes, and seasonal sale visuals.
+          <p className="text-xs sm:text-sm text-zinc-500 mt-0.5">
+            Manage promotional strips, dynamic coupon codes, and seasonal sales visuals.
           </p>
         </div>
 
         <button
           onClick={handleSave}
-          disabled={isPending}
-          className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-medium text-sm transition-all shadow-sm hover:shadow active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+          disabled={isPending || isUploading || isDeletingImage}
+          className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-medium text-xs sm:text-sm transition-all shadow-xs hover:shadow active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer w-full sm:w-auto"
         >
           {isPending ? (
             <>
-              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              <span>Saving Changes...</span>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span>Saving...</span>
             </>
           ) : (
             <>
@@ -206,11 +281,11 @@ export default function BannerManagementForm({
         </button>
       </div>
 
-      {/* Tabs Switcher */}
-      <div className="flex items-center gap-2 border-b border-zinc-200 pb-px">
+      {/* Responsive Tabs Switcher */}
+      <div className="flex items-center gap-1.5 border-b border-zinc-200 pb-px overflow-x-auto scrollbar-hide">
         <button
           onClick={() => setActiveTab("offer")}
-          className={`flex items-center gap-2 px-4 py-2.5 font-medium text-sm rounded-t-lg border-b-2 transition-colors cursor-pointer ${
+          className={`flex items-center gap-2 px-3.5 py-2 font-medium text-xs sm:text-sm rounded-t-lg border-b-2 transition-colors cursor-pointer shrink-0 ${
             activeTab === "offer"
               ? "border-orange-500 text-orange-600 bg-orange-50/50"
               : "border-transparent text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50"
@@ -219,19 +294,19 @@ export default function BannerManagementForm({
           <TicketPercent className="w-4 h-4" />
           <span>Special Offer &amp; Coupons</span>
           <span
-            className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
+            className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${
               offerBanner.enabled
                 ? "bg-emerald-100 text-emerald-700"
                 : "bg-zinc-200 text-zinc-600"
             }`}
           >
-            {offerBanner.enabled ? "Active" : "Disabled"}
+            {offerBanner.enabled ? "Active" : "Off"}
           </span>
         </button>
 
         <button
           onClick={() => setActiveTab("season")}
-          className={`flex items-center gap-2 px-4 py-2.5 font-medium text-sm rounded-t-lg border-b-2 transition-colors cursor-pointer ${
+          className={`flex items-center gap-2 px-3.5 py-2 font-medium text-xs sm:text-sm rounded-t-lg border-b-2 transition-colors cursor-pointer shrink-0 ${
             activeTab === "season"
               ? "border-orange-500 text-orange-600 bg-orange-50/50"
               : "border-transparent text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50"
@@ -240,13 +315,13 @@ export default function BannerManagementForm({
           <Sparkles className="w-4 h-4" />
           <span>Season Sale Banner</span>
           <span
-            className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
+            className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${
               seasonSaleBanner.enabled
                 ? "bg-emerald-100 text-emerald-700"
                 : "bg-zinc-200 text-zinc-600"
             }`}
           >
-            {seasonSaleBanner.enabled ? "Active" : "Disabled"}
+            {seasonSaleBanner.enabled ? "Active" : "Off"}
           </span>
         </button>
       </div>
@@ -255,30 +330,30 @@ export default function BannerManagementForm({
       {/* TAB 1: SPECIAL OFFER BANNER & DYNAMIC COUPON CARDS        */}
       {/* ========================================================= */}
       {activeTab === "offer" && (
-        <div className="space-y-6">
+        <div className="space-y-5">
           {/* Master Toggle Card */}
-          <div className="bg-white rounded-2xl border border-zinc-200 p-5 sm:p-6 shadow-sm flex items-center justify-between">
+          <div className="bg-white rounded-xl border border-zinc-200 p-4 sm:p-5 shadow-xs flex items-center justify-between gap-3">
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-base sm:text-lg font-bold text-zinc-900">
-                  Special Offer Banner Visibility
+                <h3 className="text-sm sm:text-base font-bold text-zinc-900">
+                  Special Offer Strip Visibility
                 </h3>
                 <span
-                  className={`text-xs px-2.5 py-0.5 rounded-full font-semibold ${
+                  className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
                     offerBanner.enabled
                       ? "bg-emerald-100 text-emerald-700"
                       : "bg-zinc-100 text-zinc-500"
                   }`}
                 >
-                  {offerBanner.enabled ? "Shown on Home" : "Hidden from Home"}
+                  {offerBanner.enabled ? "Enabled" : "Disabled"}
                 </span>
               </div>
-              <p className="text-xs sm:text-sm text-zinc-500 mt-1">
-                Toggle to show or completely hide the Special Offer strip on the store homepage.
+              <p className="text-xs text-zinc-500 mt-0.5">
+                Toggle to show or completely hide the Special Offer banner on the store homepage.
               </p>
             </div>
 
-            <label className="relative inline-flex items-center cursor-pointer select-none">
+            <label className="relative inline-flex items-center cursor-pointer select-none shrink-0">
               <input
                 type="checkbox"
                 checked={offerBanner.enabled}
@@ -287,18 +362,18 @@ export default function BannerManagementForm({
                 }
                 className="sr-only peer"
               />
-              <div className="w-12 h-6.5 bg-zinc-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-5.5 after:w-5.5 after:transition-all peer-checked:bg-orange-500" />
+              <div className="w-11 h-6 bg-zinc-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500" />
             </label>
           </div>
 
-          {/* Banner Content Details */}
-          <div className="bg-white rounded-2xl border border-zinc-200 p-5 sm:p-6 shadow-sm space-y-5">
-            <h3 className="text-base font-bold text-zinc-900 flex items-center gap-2">
+          {/* Banner Copy & Action */}
+          <div className="bg-white rounded-xl border border-zinc-200 p-4 sm:p-5 shadow-xs space-y-4">
+            <h3 className="text-sm font-bold text-zinc-900 flex items-center gap-2">
               <Layers className="w-4 h-4 text-orange-500" />
               <span>Offer Banner Copy &amp; Action</span>
             </h3>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
               <div>
                 <label className="block text-xs font-semibold text-zinc-700 mb-1">
                   Tagline / Pre-heading
@@ -310,7 +385,7 @@ export default function BannerManagementForm({
                     setOfferBanner((prev) => ({ ...prev, tagline: e.target.value }))
                   }
                   placeholder="Special Offer"
-                  className="w-full px-3.5 py-2 text-sm border border-zinc-200 rounded-xl focus:outline-none focus:border-orange-500"
+                  className="w-full px-3 py-2 text-xs sm:text-sm border border-zinc-200 rounded-lg focus:outline-none focus:border-orange-500"
                 />
               </div>
 
@@ -325,13 +400,13 @@ export default function BannerManagementForm({
                     setOfferBanner((prev) => ({ ...prev, title: e.target.value }))
                   }
                   placeholder="BUY 2 GET 1"
-                  className="w-full px-3.5 py-2 text-sm border border-zinc-200 rounded-xl focus:outline-none focus:border-orange-500"
+                  className="w-full px-3 py-2 text-xs sm:text-sm border border-zinc-200 rounded-lg focus:outline-none focus:border-orange-500"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-zinc-700 mb-1">
-                  Highlight Text (Large Font)
+                  Highlight Text
                 </label>
                 <input
                   type="text"
@@ -343,118 +418,112 @@ export default function BannerManagementForm({
                     }))
                   }
                   placeholder="FREE"
-                  className="w-full px-3.5 py-2 text-sm border border-zinc-200 rounded-xl focus:outline-none focus:border-orange-500 font-bold text-orange-600"
+                  className="w-full px-3 py-2 text-xs sm:text-sm border border-zinc-200 rounded-lg focus:outline-none focus:border-orange-500 font-bold text-orange-600"
                 />
               </div>
 
               <div className="sm:col-span-2">
                 <label className="block text-xs font-semibold text-zinc-700 mb-1">
-                  Description / Eligibility Subtext
+                  Description
                 </label>
                 <input
                   type="text"
                   value={offerBanner.description}
                   onChange={(e) =>
-                    setOfferBanner((prev) => ({
-                      ...prev,
-                      description: e.target.value,
-                    }))
+                    setOfferBanner((prev) => ({ ...prev, description: e.target.value }))
                   }
-                  placeholder="On T-Shirts & Casual Wear"
-                  className="w-full px-3.5 py-2 text-sm border border-zinc-200 rounded-xl focus:outline-none focus:border-orange-500"
+                  placeholder="Limited time offer on all premium apparel..."
+                  className="w-full px-3 py-2 text-xs sm:text-sm border border-zinc-200 rounded-lg focus:outline-none focus:border-orange-500"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-zinc-700 mb-1">
-                  Button Text &amp; Destination Link
+                  Button Text
                 </label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={offerBanner.buttonText}
-                    onChange={(e) =>
-                      setOfferBanner((prev) => ({
-                        ...prev,
-                        buttonText: e.target.value,
-                      }))
-                    }
-                    placeholder="Shop Now"
-                    className="w-1/2 px-3 py-2 text-sm border border-zinc-200 rounded-xl focus:outline-none focus:border-orange-500"
-                  />
-                  <input
-                    type="text"
-                    value={offerBanner.buttonLink}
-                    onChange={(e) =>
-                      setOfferBanner((prev) => ({
-                        ...prev,
-                        buttonLink: e.target.value,
-                      }))
-                    }
-                    placeholder="/collections"
-                    className="w-1/2 px-3 py-2 text-sm border border-zinc-200 rounded-xl focus:outline-none focus:border-orange-500 font-mono text-xs"
-                  />
-                </div>
+                <input
+                  type="text"
+                  value={offerBanner.buttonText}
+                  onChange={(e) =>
+                    setOfferBanner((prev) => ({ ...prev, buttonText: e.target.value }))
+                  }
+                  placeholder="Shop Now"
+                  className="w-full px-3 py-2 text-xs sm:text-sm border border-zinc-200 rounded-lg focus:outline-none focus:border-orange-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-zinc-700 mb-1">
+                  Button Link
+                </label>
+                <input
+                  type="text"
+                  value={offerBanner.buttonLink}
+                  onChange={(e) =>
+                    setOfferBanner((prev) => ({ ...prev, buttonLink: e.target.value }))
+                  }
+                  placeholder="/collections"
+                  className="w-full px-3 py-2 text-xs sm:text-sm border border-zinc-200 rounded-lg focus:outline-none focus:border-orange-500 font-mono"
+                />
               </div>
             </div>
           </div>
 
-          {/* Dynamic Coupon Cards Manager (Max 3) */}
-          <div className="bg-white rounded-2xl border border-zinc-200 p-5 sm:p-6 shadow-sm space-y-5">
-            <div className="flex items-center justify-between flex-wrap gap-2">
+          {/* Dynamic Coupon Cards Builder (Max 3) */}
+          <div className="bg-white rounded-xl border border-zinc-200 p-4 sm:p-5 shadow-xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <div>
                 <div className="flex items-center gap-2">
-                  <h3 className="text-base font-bold text-zinc-900">
-                    Coupon Cards Display
+                  <h3 className="text-sm font-bold text-zinc-900">
+                    Dynamic Coupon Cards
                   </h3>
-                  <span className="text-xs px-2.5 py-0.5 rounded-full bg-orange-100 text-orange-700 font-bold">
-                    {offerBanner.coupons.length} / 3 Cards Active
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">
+                    {offerBanner.coupons.length} of 3 Cards
                   </span>
                 </div>
-                <p className="text-xs sm:text-sm text-zinc-500 mt-0.5">
-                  Customize the coupon boards shown on the right side. You can add 1, 2, or up to 3 cards.
+                <p className="text-xs text-zinc-500 mt-0.5">
+                  Customize discount %, minimum order amount, and promo code. Max 3 cards.
                 </p>
               </div>
 
-              {offerBanner.coupons.length < 3 && (
-                <button
-                  type="button"
-                  onClick={handleAddCoupon}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl bg-orange-50 text-orange-600 hover:bg-orange-100 transition-colors cursor-pointer"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Add Coupon Card</span>
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={handleAddCoupon}
+                disabled={offerBanner.coupons.length >= 3}
+                className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer w-fit"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Add Card ({3 - offerBanner.coupons.length} left)</span>
+              </button>
             </div>
 
-            {/* Cards Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+            {/* Coupons Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
               {offerBanner.coupons.map((coupon, idx) => (
                 <div
                   key={idx}
-                  className="border border-zinc-200 rounded-2xl p-4 bg-zinc-50/50 hover:bg-white transition-all shadow-xs relative group flex flex-col justify-between"
+                  className="relative p-3.5 rounded-xl border border-zinc-200 bg-zinc-50/70 hover:border-orange-300 transition-all space-y-3"
                 >
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
+                  <div className="flex items-center justify-between pb-1.5 border-b border-zinc-200">
+                    <span className="text-xs font-bold text-zinc-700">
                       Card #{idx + 1}
                     </span>
                     {offerBanner.coupons.length > 1 && (
                       <button
                         type="button"
                         onClick={() => handleRemoveCoupon(idx)}
-                        className="text-zinc-400 hover:text-red-500 p-1 rounded-lg transition-colors cursor-pointer"
-                        title="Remove Card"
+                        className="text-zinc-400 hover:text-red-600 transition-colors cursor-pointer p-1"
+                        title="Remove coupon card"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     )}
                   </div>
 
-                  <div className="space-y-3">
+                  <div className="space-y-2.5">
                     <div>
                       <label className="block text-[11px] font-medium text-zinc-600 mb-0.5">
-                        Discount Percentage / Amount
+                        Discount % or OFF
                       </label>
                       <input
                         type="text"
@@ -462,14 +531,14 @@ export default function BannerManagementForm({
                         onChange={(e) =>
                           handleCouponChange(idx, "discount", e.target.value)
                         }
-                        placeholder="10% or 10% OFF"
-                        className="w-full px-3 py-1.5 text-sm font-bold text-orange-600 border border-zinc-200 rounded-lg focus:outline-none focus:border-orange-500 bg-white"
+                        placeholder="10%"
+                        className="w-full px-2.5 py-1.5 text-xs font-bold text-orange-600 border border-zinc-200 rounded-lg focus:outline-none focus:border-orange-500 bg-white"
                       />
                     </div>
 
                     <div>
                       <label className="block text-[11px] font-medium text-zinc-600 mb-0.5">
-                        Minimum Order Price
+                        Min Order Price
                       </label>
                       <input
                         type="text"
@@ -478,13 +547,13 @@ export default function BannerManagementForm({
                           handleCouponChange(idx, "minOrder", e.target.value)
                         }
                         placeholder="₹1499"
-                        className="w-full px-3 py-1.5 text-sm font-semibold text-zinc-900 border border-zinc-200 rounded-lg focus:outline-none focus:border-orange-500 bg-white"
+                        className="w-full px-2.5 py-1.5 text-xs font-semibold text-zinc-800 border border-zinc-200 rounded-lg focus:outline-none focus:border-orange-500 bg-white"
                       />
                     </div>
 
                     <div>
                       <label className="block text-[11px] font-medium text-zinc-600 mb-0.5">
-                        Coupon Promo Code
+                        Promo Code
                       </label>
                       <input
                         type="text"
@@ -493,22 +562,22 @@ export default function BannerManagementForm({
                           handleCouponChange(idx, "code", e.target.value)
                         }
                         placeholder="SR10"
-                        className="w-full px-3 py-1.5 text-sm font-mono font-bold tracking-wider uppercase text-zinc-900 border border-zinc-200 rounded-lg focus:outline-none focus:border-orange-500 bg-white"
+                        className="w-full px-2.5 py-1.5 text-xs font-mono font-bold tracking-wider uppercase text-zinc-900 border border-zinc-200 rounded-lg focus:outline-none focus:border-orange-500 bg-white"
                       />
                     </div>
                   </div>
 
                   {/* Micro Visual Card Preview */}
-                  <div className="mt-4 pt-3 border-t border-dashed border-zinc-200 text-center bg-white rounded-lg p-2.5 shadow-2xs">
+                  <div className="pt-2 border-t border-dashed border-zinc-200 text-center bg-white rounded-lg p-2 shadow-2xs">
                     <p className="text-[10px] text-zinc-400 font-medium">Extra</p>
-                    <p className="text-base font-extrabold text-orange-500 leading-tight">
+                    <p className="text-sm font-extrabold text-orange-500 leading-tight">
                       {coupon.discount.toUpperCase().includes("OFF")
                         ? coupon.discount
                         : `${coupon.discount} OFF`}
                     </p>
                     <p className="text-[9px] text-zinc-500">on orders above</p>
                     <p className="text-xs font-bold text-zinc-800">{coupon.minOrder}</p>
-                    <div className="mt-1.5 pt-1 border-t border-dashed border-zinc-200">
+                    <div className="mt-1 pt-1 border-t border-dashed border-zinc-200">
                       <span className="text-[10px] font-mono font-bold text-zinc-900 bg-zinc-100 px-2 py-0.5 rounded">
                         {coupon.code}
                       </span>
@@ -522,33 +591,33 @@ export default function BannerManagementForm({
       )}
 
       {/* ========================================================= */}
-      {/* TAB 2: SEASON SALE BANNER & DYNAMIC IMAGE UPLOAD          */}
+      {/* TAB 2: SEASON SALE BANNER (FULL OR SPLIT WITH CROPPING)   */}
       {/* ========================================================= */}
       {activeTab === "season" && (
-        <div className="space-y-6">
+        <div className="space-y-5">
           {/* Master Toggle Card */}
-          <div className="bg-white rounded-2xl border border-zinc-200 p-5 sm:p-6 shadow-sm flex items-center justify-between">
+          <div className="bg-white rounded-xl border border-zinc-200 p-4 sm:p-5 shadow-xs flex items-center justify-between gap-3">
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-base sm:text-lg font-bold text-zinc-900">
+                <h3 className="text-sm sm:text-base font-bold text-zinc-900">
                   Season Sale Banner Visibility
                 </h3>
                 <span
-                  className={`text-xs px-2.5 py-0.5 rounded-full font-semibold ${
+                  className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
                     seasonSaleBanner.enabled
                       ? "bg-emerald-100 text-emerald-700"
                       : "bg-zinc-100 text-zinc-500"
                   }`}
                 >
-                  {seasonSaleBanner.enabled ? "Shown on Home" : "Hidden from Home"}
+                  {seasonSaleBanner.enabled ? "Enabled" : "Disabled"}
                 </span>
               </div>
-              <p className="text-xs sm:text-sm text-zinc-500 mt-1">
+              <p className="text-xs text-zinc-500 mt-0.5">
                 Toggle to show or completely hide the Season Sale section from the homepage.
               </p>
             </div>
 
-            <label className="relative inline-flex items-center cursor-pointer select-none">
+            <label className="relative inline-flex items-center cursor-pointer select-none shrink-0">
               <input
                 type="checkbox"
                 checked={seasonSaleBanner.enabled}
@@ -560,19 +629,20 @@ export default function BannerManagementForm({
                 }
                 className="sr-only peer"
               />
-              <div className="w-12 h-6.5 bg-zinc-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-5.5 after:w-5.5 after:transition-all peer-checked:bg-orange-500" />
+              <div className="w-11 h-6 bg-zinc-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500" />
             </label>
           </div>
 
           {/* Banner Layout Mode */}
-          <div className="bg-white rounded-2xl border border-zinc-200 p-5 sm:p-6 shadow-sm space-y-4">
-            <h3 className="text-base font-bold text-zinc-900">
+          <div className="bg-white rounded-xl border border-zinc-200 p-4 sm:p-5 shadow-xs space-y-3">
+            <h3 className="text-sm font-bold text-zinc-900">
               Banner Layout Mode
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Mode A: Full Graphic Banner */}
               <label
-                className={`flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                  seasonSaleBanner.bannerType === "full"
+                className={`flex items-start gap-3 p-3.5 rounded-xl border-2 cursor-pointer transition-all ${
+                  isFullBanner
                     ? "border-orange-500 bg-orange-50/30"
                     : "border-zinc-200 hover:border-zinc-300"
                 }`}
@@ -581,25 +651,26 @@ export default function BannerManagementForm({
                   type="radio"
                   name="bannerType"
                   value="full"
-                  checked={seasonSaleBanner.bannerType === "full"}
+                  checked={isFullBanner}
                   onChange={() =>
                     setSeasonSaleBanner((prev) => ({ ...prev, bannerType: "full" }))
                   }
-                  className="mt-1 text-orange-500 focus:ring-orange-500"
+                  className="mt-0.5 text-orange-500 focus:ring-orange-500"
                 />
                 <div>
-                  <p className="text-sm font-bold text-zinc-900">
-                    Full Graphic Banner (Recommended)
+                  <p className="text-xs sm:text-sm font-bold text-zinc-900">
+                    Full Graphic Banner (Panoramic)
                   </p>
-                  <p className="text-xs text-zinc-500 mt-0.5 leading-relaxed">
-                    Renders your uploaded banner as a full-width panoramic banner across the entire section.
+                  <p className="text-[11px] sm:text-xs text-zinc-500 mt-0.5 leading-relaxed">
+                    Uses your uploaded artwork across the entire banner width. Headings are hidden because your image already contains text.
                   </p>
                 </div>
               </label>
 
+              {/* Mode B: Split Content Banner */}
               <label
-                className={`flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                  seasonSaleBanner.bannerType === "split"
+                className={`flex items-start gap-3 p-3.5 rounded-xl border-2 cursor-pointer transition-all ${
+                  !isFullBanner
                     ? "border-orange-500 bg-orange-50/30"
                     : "border-zinc-200 hover:border-zinc-300"
                 }`}
@@ -608,229 +679,159 @@ export default function BannerManagementForm({
                   type="radio"
                   name="bannerType"
                   value="split"
-                  checked={seasonSaleBanner.bannerType === "split"}
+                  checked={!isFullBanner}
                   onChange={() =>
                     setSeasonSaleBanner((prev) => ({ ...prev, bannerType: "split" }))
                   }
-                  className="mt-1 text-orange-500 focus:ring-orange-500"
+                  className="mt-0.5 text-orange-500 focus:ring-orange-500"
                 />
                 <div>
-                  <p className="text-sm font-bold text-zinc-900">
+                  <p className="text-xs sm:text-sm font-bold text-zinc-900">
                     Split Content Banner (Editorial)
                   </p>
-                  <p className="text-xs text-zinc-500 mt-0.5 leading-relaxed">
-                    Shows your image on the left/right with live title text, discount callout, and Shop button in the center.
+                  <p className="text-[11px] sm:text-xs text-zinc-500 mt-0.5 leading-relaxed">
+                    Shows cropped visual on the left, with dynamic Title, Discount text, and Shop button on the right.
                   </p>
                 </div>
               </label>
             </div>
           </div>
 
-          {/* Image Upload & Detailed Specifications Alert */}
-          <div className="bg-white rounded-2xl border border-zinc-200 p-5 sm:p-6 shadow-sm space-y-5">
+          {/* Image Upload Area with Cropping & R2 Delete */}
+          <div className="bg-white rounded-xl border border-zinc-200 p-4 sm:p-5 shadow-xs space-y-4">
             <div>
-              <h3 className="text-base font-bold text-zinc-900">
-                Season Sale Image Asset
+              <h3 className="text-sm font-bold text-zinc-900">
+                {isFullBanner ? "Full Graphic Banner Image" : "Split Banner Visual Asset"}
               </h3>
-              <p className="text-xs sm:text-sm text-zinc-500 mt-0.5">
-                Upload your promotional creative. Follow the size specifications below for crisp display across mobile, tablet, and desktop.
+              <p className="text-xs text-zinc-500 mt-0.5">
+                Choose an image from your computer to crop and upload directly to Cloudflare R2.
               </p>
             </div>
 
-            {/* Prominent Guidelines Alert */}
-            <div className="bg-amber-50/70 border border-amber-200/80 rounded-2xl p-4 sm:p-5 flex items-start gap-3.5">
-              <Info className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-              <div className="text-xs sm:text-sm text-amber-900 space-y-1.5">
+            {/* Sizing Recommendations Alert */}
+            <div className="bg-amber-50/80 border border-amber-200/80 rounded-xl p-3 sm:p-4 flex items-start gap-2.5">
+              <Info className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+              <div className="text-xs text-amber-900 space-y-1">
                 <p className="font-bold text-amber-950">
-                  Recommended Image Specifications for All Devices:
+                  {isFullBanner
+                    ? "Full Panoramic Crop Recommendation:"
+                    : "Split Left-Side Crop Recommendation:"}
                 </p>
-                <ul className="list-disc pl-4 space-y-1 text-amber-800 text-[12px] sm:text-[13px]">
-                  <li>
-                    <span className="font-semibold">Full Graphic Banner:</span>{" "}
-                    <code className="bg-amber-100/80 px-1.5 py-0.5 rounded font-mono font-bold text-amber-950">
-                      1920 × 600 px
-                    </code>{" "}
-                    or{" "}
-                    <code className="bg-amber-100/80 px-1.5 py-0.5 rounded font-mono font-bold text-amber-950">
-                      1200 × 400 px
-                    </code>{" "}
-                    (Landscape ~3:1 aspect ratio). Keep key text centered to avoid edge cutoff on mobile.
-                  </li>
-                  <li>
-                    <span className="font-semibold">Split Editorial Banner:</span>{" "}
-                    <code className="bg-amber-100/80 px-1.5 py-0.5 rounded font-mono font-bold text-amber-950">
-                      800 × 800 px
-                    </code>{" "}
-                    or{" "}
-                    <code className="bg-amber-100/80 px-1.5 py-0.5 rounded font-mono font-bold text-amber-950">
-                      800 × 1000 px
-                    </code>{" "}
-                    high-resolution apparel or model cutout.
-                  </li>
-                  <li>
-                    <span className="font-semibold">Format &amp; File Size:</span> WebP, PNG, or high-quality JPG (Max 5MB).
-                  </li>
-                </ul>
+                {isFullBanner ? (
+                  <p className="text-[11px] sm:text-xs text-amber-800 leading-relaxed">
+                    Target Aspect: <span className="font-bold">3:1 Landscape</span> (1920×640 px or 1200×400 px). When you select an image, you can freely zoom and pan within the 3:1 crop frame before uploading.
+                  </p>
+                ) : (
+                  <p className="text-[11px] sm:text-xs text-amber-800 leading-relaxed">
+                    Target Aspect: <span className="font-bold">1:1 Square</span> (800×800 px) or product cutout. Fits cleanly on the left side of the split banner.
+                  </p>
+                )}
               </div>
             </div>
 
-            {/* Upload Area / Preview */}
-            <div className="space-y-4">
-              {seasonSaleBanner.imageUrl ? (
-                <div className="relative group border border-zinc-200 rounded-2xl overflow-hidden bg-zinc-100">
-                  <div className="relative w-full aspect-[21/8] max-h-[280px]">
-                    <Image
-                      src={seasonSaleBanner.imageUrl}
-                      alt="Banner Preview"
-                      fill
-                      className="object-cover"
-                    />
-                  </div>
-                  <div className="p-3 bg-white border-t border-zinc-200 flex items-center justify-between">
-                    <span className="text-xs text-zinc-500 truncate max-w-md font-mono">
+            {/* Hidden file input */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleFileSelected}
+              className="hidden"
+            />
+
+            {/* Upload Area / Current Image Card */}
+            {seasonSaleBanner.imageUrl ? (
+              <div className="border border-zinc-200 rounded-xl overflow-hidden bg-zinc-100">
+                <div
+                  className={`relative w-full ${
+                    isFullBanner
+                      ? "aspect-3/1 max-h-55"
+                      : "aspect-video sm:aspect-21/9 max-h-55"
+                  }`}
+                >
+                  <Image
+                    src={seasonSaleBanner.imageUrl}
+                    alt="Active Banner Image"
+                    fill
+                    className="object-cover"
+                  />
+                </div>
+                <div className="p-3 bg-white border-t border-zinc-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-semibold text-zinc-800">
+                      Active Image on Storefront
+                    </p>
+                    <p className="text-[11px] text-zinc-400 font-mono truncate">
                       {seasonSaleBanner.imageUrl}
-                    </span>
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
                     <button
                       type="button"
-                      onClick={() =>
-                        setSeasonSaleBanner((prev) => ({ ...prev, imageUrl: "" }))
-                      }
-                      className="text-xs font-semibold text-red-600 hover:text-red-700 px-3 py-1.5 rounded-lg hover:bg-red-50 transition-colors cursor-pointer"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-zinc-200 hover:bg-zinc-50 text-zinc-700 text-xs font-semibold transition-colors cursor-pointer"
                     >
-                      Remove Image
+                      <Scissors className="w-3.5 h-3.5 text-zinc-500" />
+                      <span>Crop New Image</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={isDeletingImage}
+                      onClick={handleRemoveImage}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-200 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-semibold transition-colors cursor-pointer disabled:opacity-50"
+                    >
+                      {isDeletingImage ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          <span>Deleting from R2...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Remove Picture</span>
+                        </>
+                      )}
                     </button>
                   </div>
                 </div>
-              ) : (
-                <label className="border-2 border-dashed border-zinc-300 hover:border-orange-500 rounded-2xl p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-colors bg-zinc-50/50 hover:bg-orange-50/20">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                    disabled={isUploading}
-                    className="hidden"
-                  />
-                  <div className="w-12 h-12 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center mb-3">
-                    {isUploading ? (
-                      <div className="w-5 h-5 border-2 border-orange-500/30 border-t-orange-600 rounded-full animate-spin" />
-                    ) : (
-                      <Upload className="w-6 h-6" />
-                    )}
-                  </div>
-                  <p className="text-sm font-bold text-zinc-900">
-                    {isUploading
-                      ? "Uploading image to Cloudflare R2..."
-                      : "Click to upload banner image or drag & drop"}
-                  </p>
-                  <p className="text-xs text-zinc-500 mt-1">
-                    Recommended: 1920 × 600 px (PNG, JPG, WebP up to 5MB)
-                  </p>
-                </label>
-              )}
-
-              {/* Or manual URL input */}
-              <div>
-                <label className="block text-xs font-semibold text-zinc-700 mb-1">
-                  Or Paste External Image URL
-                </label>
-                <input
-                  type="url"
-                  value={seasonSaleBanner.imageUrl || ""}
-                  onChange={(e) =>
-                    setSeasonSaleBanner((prev) => ({
-                      ...prev,
-                      imageUrl: e.target.value,
-                    }))
-                  }
-                  placeholder="https://images.unsplash.com/..."
-                  className="w-full px-3.5 py-2 text-sm border border-zinc-200 rounded-xl focus:outline-none focus:border-orange-500 font-mono text-xs"
-                />
               </div>
-            </div>
+            ) : (
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                className="border-2 border-dashed border-zinc-300 hover:border-orange-500 rounded-xl p-6 sm:p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-colors bg-zinc-50/50 hover:bg-orange-50/20 group"
+              >
+                <div className="w-11 h-11 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center mb-2.5 group-hover:scale-105 transition-transform">
+                  <Upload className="w-5 h-5" />
+                </div>
+                <p className="text-xs sm:text-sm font-bold text-zinc-900">
+                  Choose Image to Crop &amp; Upload
+                </p>
+                <p className="text-[11px] text-zinc-500 mt-1">
+                  {isFullBanner
+                    ? "Panoramic 3:1 crop tool will open before uploading to Cloudflare R2"
+                    : "Square 1:1 crop tool will open before uploading to Cloudflare R2"}
+                </p>
+              </div>
+            )}
           </div>
 
-          {/* Text & Button Fields (for split mode or banner link) */}
-          <div className="bg-white rounded-2xl border border-zinc-200 p-5 sm:p-6 shadow-sm space-y-4">
-            <h3 className="text-base font-bold text-zinc-900">
-              Banner Headings &amp; Link
-            </h3>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-zinc-700 mb-1">
-                  Tagline (e.g. Season Sale)
-                </label>
-                <input
-                  type="text"
-                  value={seasonSaleBanner.tagline}
-                  onChange={(e) =>
-                    setSeasonSaleBanner((prev) => ({
-                      ...prev,
-                      tagline: e.target.value,
-                    }))
-                  }
-                  className="w-full px-3.5 py-2 text-sm border border-zinc-200 rounded-xl focus:outline-none focus:border-orange-500"
-                />
+          {/* Conditional Banner Link & Headings */}
+          {isFullBanner ? (
+            /* Mode 1: Full Graphic Banner ONLY needs click link URL (Headings hidden as requested) */
+            <div className="bg-white rounded-xl border border-zinc-200 p-4 sm:p-5 shadow-xs space-y-3">
+              <div className="flex items-center gap-2">
+                <LinkIcon className="w-4 h-4 text-orange-500" />
+                <h3 className="text-sm font-bold text-zinc-900">
+                  Banner Destination Link
+                </h3>
               </div>
-
+              <p className="text-xs text-zinc-500">
+                Where should customers be redirected when they click this graphic banner?
+              </p>
               <div>
-                <label className="block text-xs font-semibold text-zinc-700 mb-1">
-                  Title (e.g. FLAT)
-                </label>
                 <input
                   type="text"
-                  value={seasonSaleBanner.title}
-                  onChange={(e) =>
-                    setSeasonSaleBanner((prev) => ({
-                      ...prev,
-                      title: e.target.value,
-                    }))
-                  }
-                  className="w-full px-3.5 py-2 text-sm border border-zinc-200 rounded-xl focus:outline-none focus:border-orange-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-zinc-700 mb-1">
-                  Discount Callout (e.g. 30% OFF)
-                </label>
-                <input
-                  type="text"
-                  value={seasonSaleBanner.discountText}
-                  onChange={(e) =>
-                    setSeasonSaleBanner((prev) => ({
-                      ...prev,
-                      discountText: e.target.value,
-                    }))
-                  }
-                  className="w-full px-3.5 py-2 text-sm border border-zinc-200 rounded-xl focus:outline-none focus:border-orange-500 font-bold text-orange-600"
-                />
-              </div>
-
-              <div className="sm:col-span-2">
-                <label className="block text-xs font-semibold text-zinc-700 mb-1">
-                  Description
-                </label>
-                <input
-                  type="text"
-                  value={seasonSaleBanner.description}
-                  onChange={(e) =>
-                    setSeasonSaleBanner((prev) => ({
-                      ...prev,
-                      description: e.target.value,
-                    }))
-                  }
-                  className="w-full px-3.5 py-2 text-sm border border-zinc-200 rounded-xl focus:outline-none focus:border-orange-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-zinc-700 mb-1">
-                  Destination Link URL
-                </label>
-                <input
-                  type="text"
-                  value={seasonSaleBanner.buttonLink}
+                  value={seasonSaleBanner.buttonLink || "/collections"}
                   onChange={(e) =>
                     setSeasonSaleBanner((prev) => ({
                       ...prev,
@@ -838,13 +839,168 @@ export default function BannerManagementForm({
                     }))
                   }
                   placeholder="/collections"
-                  className="w-full px-3.5 py-2 text-sm border border-zinc-200 rounded-xl focus:outline-none focus:border-orange-500 font-mono text-xs"
+                  className="w-full px-3 py-2 text-xs sm:text-sm border border-zinc-200 rounded-lg focus:outline-none focus:border-orange-500 font-mono"
                 />
               </div>
             </div>
-          </div>
+          ) : (
+            /* Mode 2: Split Content Banner SHOWS Banner Headings & Link */
+            <div className="bg-white rounded-xl border border-zinc-200 p-4 sm:p-5 shadow-xs space-y-4">
+              <div className="flex items-center gap-2">
+                <Layers className="w-4 h-4 text-orange-500" />
+                <h3 className="text-sm font-bold text-zinc-900">
+                  Banner Headings &amp; Link Details
+                </h3>
+              </div>
+              <p className="text-xs text-zinc-500">
+                These text details display cleanly on the right side of the split banner.
+              </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-700 mb-1">
+                    Tagline (e.g. Season Sale)
+                  </label>
+                  <input
+                    type="text"
+                    value={seasonSaleBanner.tagline}
+                    onChange={(e) =>
+                      setSeasonSaleBanner((prev) => ({
+                        ...prev,
+                        tagline: e.target.value,
+                      }))
+                    }
+                    className="w-full px-3 py-2 text-xs sm:text-sm border border-zinc-200 rounded-lg focus:outline-none focus:border-orange-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-700 mb-1">
+                    Title (e.g. FLAT)
+                  </label>
+                  <input
+                    type="text"
+                    value={seasonSaleBanner.title}
+                    onChange={(e) =>
+                      setSeasonSaleBanner((prev) => ({
+                        ...prev,
+                        title: e.target.value,
+                      }))
+                    }
+                    className="w-full px-3 py-2 text-xs sm:text-sm border border-zinc-200 rounded-lg focus:outline-none focus:border-orange-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-700 mb-1">
+                    Discount Callout (e.g. 30% OFF)
+                  </label>
+                  <input
+                    type="text"
+                    value={seasonSaleBanner.discountText}
+                    onChange={(e) =>
+                      setSeasonSaleBanner((prev) => ({
+                        ...prev,
+                        discountText: e.target.value,
+                      }))
+                    }
+                    className="w-full px-3 py-2 text-xs sm:text-sm border border-zinc-200 rounded-lg focus:outline-none focus:border-orange-500 font-bold text-orange-600"
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-semibold text-zinc-700 mb-1">
+                    Description Text
+                  </label>
+                  <input
+                    type="text"
+                    value={seasonSaleBanner.description}
+                    onChange={(e) =>
+                      setSeasonSaleBanner((prev) => ({
+                        ...prev,
+                        description: e.target.value,
+                      }))
+                    }
+                    className="w-full px-3 py-2 text-xs sm:text-sm border border-zinc-200 rounded-lg focus:outline-none focus:border-orange-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-700 mb-1">
+                    Button Text
+                  </label>
+                  <input
+                    type="text"
+                    value={seasonSaleBanner.buttonText}
+                    onChange={(e) =>
+                      setSeasonSaleBanner((prev) => ({
+                        ...prev,
+                        buttonText: e.target.value,
+                      }))
+                    }
+                    className="w-full px-3 py-2 text-xs sm:text-sm border border-zinc-200 rounded-lg focus:outline-none focus:border-orange-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-700 mb-1">
+                    Destination Link URL
+                  </label>
+                  <input
+                    type="text"
+                    value={seasonSaleBanner.buttonLink}
+                    onChange={(e) =>
+                      setSeasonSaleBanner((prev) => ({
+                        ...prev,
+                        buttonLink: e.target.value,
+                      }))
+                    }
+                    placeholder="/collections"
+                    className="w-full px-3 py-2 text-xs sm:text-sm border border-zinc-200 rounded-lg focus:outline-none focus:border-orange-500 font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-700 mb-1">
+                    Stamp Badge Text
+                  </label>
+                  <input
+                    type="text"
+                    value={seasonSaleBanner.badgeText}
+                    onChange={(e) =>
+                      setSeasonSaleBanner((prev) => ({
+                        ...prev,
+                        badgeText: e.target.value,
+                      }))
+                    }
+                    className="w-full px-3 py-2 text-xs sm:text-sm border border-zinc-200 rounded-lg focus:outline-none focus:border-orange-500"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
+
+      {/* Interactive Crop Modal */}
+      <ImageCropModal
+        isOpen={isCropModalOpen}
+        imageSrc={cropImageSrc}
+        aspectRatio={isFullBanner ? 3 / 1 : 1 / 1}
+        aspectRatioLabel={
+          isFullBanner
+            ? "Full Panoramic Graphic Banner (3:1 Landscape ~ 1920×640 px)"
+            : "Split Content Left-Side Visual (1:1 Square ~ 800×800 px)"
+        }
+        targetWidth={isFullBanner ? 1920 : 800}
+        targetHeight={isFullBanner ? 640 : 800}
+        isUploading={isUploading}
+        onCropComplete={handleCroppedUpload}
+        onCancel={() => {
+          setIsCropModalOpen(false);
+          setIsUploading(false);
+        }}
+      />
     </div>
   );
 }
