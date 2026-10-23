@@ -9,7 +9,7 @@ import BestSellers from "@/components/BestSellers";
 import SeasonSaleBanner from "@/components/SeasonSaleBanner";
 import Testimonials from "@/components/Testimonials";
 import FollowUs from "@/components/FollowUs";
-import { getBannerSettings } from "@/actions/banners";
+import { getBannerSettings } from "@/lib/data/banners";
 
 export default async function Home() {
   const bannerSettings = await getBannerSettings();

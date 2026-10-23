@@ -1,6 +1,6 @@
 import { Metadata } from "next";
 import { requireAdmin } from "@/lib/auth/dal";
-import { getBannerSettings } from "@/actions/banners";
+import { getBannerSettings } from "@/lib/data/banners";
 import BannerManagementForm from "@/components/admin/BannerManagementForm";
 
 export const metadata: Metadata = {
