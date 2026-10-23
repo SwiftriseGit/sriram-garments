@@ -55,7 +55,6 @@ export default function LoginPage() {
 
       // Success -> smooth SPA client-side transition
       router.push("/");
-      router.refresh();
     } catch {
       setServerError("An unexpected error occurred. Please try again.");
     }
