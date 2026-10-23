@@ -9,8 +9,11 @@ import BestSellers from "@/components/BestSellers";
 import SeasonSaleBanner from "@/components/SeasonSaleBanner";
 import Testimonials from "@/components/Testimonials";
 import FollowUs from "@/components/FollowUs";
+import { getBannerSettings } from "@/actions/banners";
 
-export default function Home() {
+export default async function Home() {
+  const bannerSettings = await getBannerSettings();
+
   return (
     <>
       {/* Hero Banner */}
@@ -28,8 +31,10 @@ export default function Home() {
       {/* Features Strip (repeated as in design) */}
       <FeaturesBanner />
 
-      {/* Offer: Buy 2 Get 1 Free */}
-      <OfferBanner />
+      {/* Offer: Buy 2 Get 1 Free (Dynamic & Toggleable) */}
+      {bannerSettings.offerBanner.enabled && (
+        <OfferBanner data={bannerSettings.offerBanner} />
+      )}
 
       {/* Shop By Category */}
       <ShopByCategory />
@@ -40,9 +45,10 @@ export default function Home() {
       {/* Best Sellers */}
       <BestSellers />
 
-      {/* Season Sale */}
-      <SeasonSaleBanner />
-
+      {/* Season Sale (Dynamic & Toggleable) */}
+      {bannerSettings.seasonSaleBanner.enabled && (
+        <SeasonSaleBanner data={bannerSettings.seasonSaleBanner} />
+      )}
 
       {/* Testimonials */}
       <Testimonials />

@@ -9,6 +9,7 @@ import {
   Users,
   Tags,
   Settings,
+  TicketPercent,
   X,
   Store,
   ShoppingBag,
@@ -22,6 +23,7 @@ const NAV_ITEMS = [
   { name: "Orders", href: "/admin/orders", icon: ShoppingCart },
   { name: "Customers", href: "/admin/customers", icon: Users },
   { name: "Categories", href: "/admin/categories", icon: Tags },
+  { name: "Banners & Offers", href: "/admin/banners", icon: TicketPercent },
 ];
 
 export default function AdminSidebar({
