@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useTransition } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -48,39 +48,44 @@ const navLinks = [
   { label: "About Us", href: "/pages/about-us" },
 ];
 
-interface SessionUser {
+export interface SessionUser {
   userId: string;
   email: string;
   role: string;
   firstName: string;
 }
 
-export default function SiteHeader() {
+interface SiteHeaderProps {
+  initialUser?: SessionUser | null;
+}
+
+export default function SiteHeader({ initialUser = null }: SiteHeaderProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isWishlistOpen, setIsWishlistOpen] = useState(false);
-  const [user, setUser] = useState<SessionUser | null>(null);
+  const [user, setUser] = useState<SessionUser | null>(initialUser);
+  const [isPending, startTransition] = useTransition();
   const pathname = usePathname();
   const router = useRouter();
 
-  // Fetch auth state from /api/auth/me (Route Handler with cache: no-store)
+  // Sync state with server-rendered initialUser prop across route navigations & refreshes
   useEffect(() => {
-    fetch("/api/auth/me", { cache: "no-store" })
-      .then((res) => res.json())
-      .then((data) => setUser(data.user || null))
-      .catch(() => setUser(null));
-  }, [pathname]);
+    setUser(initialUser);
+  }, [initialUser]);
 
-  const handleLogout = async (e?: React.MouseEvent | React.FormEvent) => {
+  const handleLogout = (e?: React.MouseEvent | React.FormEvent) => {
     if (e) e.preventDefault();
+    // 1. Instantly wipe client state so UI reacts with 0 latency
     setUser(null);
     setIsMobileMenuOpen(false);
-    try {
+
+    // 2. Wrap server action inside a React transition
+    startTransition(async () => {
       await logout();
-    } catch {
-      // Ignore Next.js redirect throw
-    }
-    // window.location.href = "/";
+      // 3. Force clean client router refresh and navigate to /
+      router.refresh();
+      router.push("/");
+    });
   };
 
   const [mounted, setMounted] = useState(false);
@@ -206,11 +211,12 @@ export default function SiteHeader() {
                       >
                         <button
                           type="button"
+                          disabled={isPending}
                           onClick={handleLogout}
-                          className="flex items-center gap-3 px-3 py-2 text-sm text-rose-600 hover:text-rose-700 transition-colors w-full cursor-pointer"
+                          className="flex items-center gap-3 px-3 py-2 text-sm text-rose-600 hover:text-rose-700 transition-colors w-full cursor-pointer disabled:opacity-50"
                         >
                           <LogOut className="w-4 h-4" />
-                          Logout
+                          {isPending ? "Logging out..." : "Logout"}
                         </button>
                       </DropdownMenuItem>
                     </div>
@@ -559,11 +565,12 @@ export default function SiteHeader() {
                 )}
                 <button
                   type="button"
+                  disabled={isPending}
                   onClick={handleLogout}
-                  className="w-full flex items-center justify-center gap-2.5 text-red-600 hover:text-red-700 font-semibold text-sm sm:text-base py-2.5 px-5 rounded-xl hover:bg-red-50 transition-colors cursor-pointer"
+                  className="w-full flex items-center justify-center gap-2.5 text-red-600 hover:text-red-700 font-semibold text-sm sm:text-base py-2.5 px-5 rounded-xl hover:bg-red-50 transition-colors cursor-pointer disabled:opacity-50"
                 >
                   <LogOut className="w-4 h-4 sm:w-5 sm:h-5" />
-                  <span>Logout</span>
+                  <span>{isPending ? "Logging out..." : "Logout"}</span>
                 </button>
               </>
             ) : (

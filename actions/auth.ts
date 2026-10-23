@@ -157,5 +157,5 @@ export async function login(
 export async function logout() {
   await destroySession();
   revalidatePath("/", "layout");
-  redirect("/");
+  return { success: true };
 }
