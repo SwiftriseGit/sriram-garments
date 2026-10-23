@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { toast } from "sonner";
 import {
   ForgotPasswordSchema,
   ResetPasswordSchema,
@@ -57,6 +58,7 @@ export default function ForgotPasswordPage() {
   const {
     register: registerRequest,
     handleSubmit: handleSubmitRequest,
+    setError: setErrorRequest,
     formState: { errors: requestErrors, isSubmitting: isSubmittingRequest },
   } = useForm<ForgotPasswordInput>({
     resolver: zodResolver(ForgotPasswordSchema),
@@ -88,10 +90,16 @@ export default function ForgotPasswordPage() {
     try {
       const res = await requestPasswordResetOtp(data.email);
       if (!res.success) {
+        toast.error(res.message);
+        setErrorRequest("email", {
+          type: "server",
+          message: res.message,
+        });
         setServerMessage({ type: "error", text: res.message });
         return;
       }
 
+      toast.success(`Verification code sent to ${data.email}!`);
       setTargetEmail(data.email);
       setVerifyValue("email", data.email);
       setResendCooldown(60);
@@ -101,6 +109,7 @@ export default function ForgotPasswordPage() {
         text: `A 6-digit code has been sent to ${data.email}. Please check your inbox.`,
       });
     } catch {
+      toast.error("An unexpected error occurred. Please try again.");
       setServerMessage({
         type: "error",
         text: "An unexpected error occurred. Please try again.",
@@ -117,8 +126,10 @@ export default function ForgotPasswordPage() {
     try {
       const res = await requestPasswordResetOtp(targetEmail);
       if (!res.success) {
+        toast.error(res.message);
         setServerMessage({ type: "error", text: res.message });
       } else {
+        toast.success(`A new 6-digit code has been sent to ${targetEmail}.`);
         setResendCooldown(60);
         setServerMessage({
           type: "success",
@@ -126,6 +137,7 @@ export default function ForgotPasswordPage() {
         });
       }
     } catch {
+      toast.error("Failed to resend code. Please try again.");
       setServerMessage({
         type: "error",
         text: "Failed to resend code. Please try again.",
@@ -141,6 +153,7 @@ export default function ForgotPasswordPage() {
     try {
       const res = await verifyOtpAndResetPassword(data);
       if (!res.success) {
+        toast.error(res.message);
         if (res.errors) {
           Object.entries(res.errors).forEach(([field, messages]) => {
             if (messages && messages[0]) {
@@ -155,6 +168,7 @@ export default function ForgotPasswordPage() {
         return;
       }
 
+      toast.success("Password reset successfully! Redirecting...");
       setResetSuccess(true);
       setServerMessage({
         type: "success",
@@ -163,8 +177,9 @@ export default function ForgotPasswordPage() {
 
       setTimeout(() => {
         router.push("/login");
-      }, 1800);
+      }, 1500);
     } catch {
+      toast.error("An unexpected error occurred. Please try again.");
       setServerMessage({
         type: "error",
         text: "An unexpected error occurred. Please try again.",

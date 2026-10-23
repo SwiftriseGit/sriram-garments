@@ -45,12 +45,20 @@ export async function requestPasswordResetOtp(
 
   await connectDB();
 
-  // Find user
-  const user = await UserModel.findOne({ email, isActive: true });
+  // 1. Check if user exists in database before proceeding
+  const normalizedEmail = email.toLowerCase().trim();
+  const user = await UserModel.findOne({ email: normalizedEmail });
   if (!user) {
     return {
       success: false,
-      message: "No account found with this email address. Please check your email or sign up.",
+      message: "No user found with this email address. Please check your email or sign up.",
+    };
+  }
+
+  if (!user.isActive) {
+    return {
+      success: false,
+      message: "This account has been deactivated. Please contact support.",
     };
   }
 
