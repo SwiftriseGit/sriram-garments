@@ -63,13 +63,25 @@ export default function SiteHeader() {
   const pathname = usePathname();
   const router = useRouter();
 
-  // Fetch auth state from /api/auth/me (Route Handler — correct pattern for client component)
+  // Fetch auth state from /api/auth/me (Route Handler with cache: no-store)
   useEffect(() => {
-    fetch("/api/auth/me")
+    fetch("/api/auth/me", { cache: "no-store" })
       .then((res) => res.json())
       .then((data) => setUser(data.user || null))
       .catch(() => setUser(null));
   }, [pathname]);
+
+  const handleLogout = async (e?: React.MouseEvent | React.FormEvent) => {
+    if (e) e.preventDefault();
+    setUser(null);
+    setIsMobileMenuOpen(false);
+    try {
+      await logout();
+    } catch {
+      // Ignore Next.js redirect throw
+    }
+    // window.location.href = "/";
+  };
 
   const [mounted, setMounted] = useState(false);
 
@@ -187,16 +199,19 @@ export default function SiteHeader() {
                       <DropdownMenuItem
                         variant="destructive"
                         className="p-0 rounded-xl focus:bg-rose-50 cursor-pointer"
+                        onSelect={(e) => {
+                          e.preventDefault();
+                          handleLogout(e as any);
+                        }}
                       >
-                        <form action={logout} className="w-full">
-                          <button
-                            type="submit"
-                            className="flex items-center gap-3 px-3 py-2 text-sm text-rose-600 hover:text-rose-700 transition-colors w-full cursor-pointer"
-                          >
-                            <LogOut className="w-4 h-4" />
-                            Logout
-                          </button>
-                        </form>
+                        <button
+                          type="button"
+                          onClick={handleLogout}
+                          className="flex items-center gap-3 px-3 py-2 text-sm text-rose-600 hover:text-rose-700 transition-colors w-full cursor-pointer"
+                        >
+                          <LogOut className="w-4 h-4" />
+                          Logout
+                        </button>
                       </DropdownMenuItem>
                     </div>
                   </DropdownMenuContent>
@@ -542,15 +557,14 @@ export default function SiteHeader() {
                     <span>Admin Panel</span>
                   </Link>
                 )}
-                <form action={logout} className="w-full">
-                  <button
-                    type="submit"
-                    className="w-full flex items-center justify-center gap-2.5 text-red-600 hover:text-red-700 font-semibold text-sm sm:text-base py-2.5 px-5 rounded-xl hover:bg-red-50 transition-colors cursor-pointer"
-                  >
-                    <LogOut className="w-4 h-4 sm:w-5 sm:h-5" />
-                    <span>Logout</span>
-                  </button>
-                </form>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="w-full flex items-center justify-center gap-2.5 text-red-600 hover:text-red-700 font-semibold text-sm sm:text-base py-2.5 px-5 rounded-xl hover:bg-red-50 transition-colors cursor-pointer"
+                >
+                  <LogOut className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <span>Logout</span>
+                </button>
               </>
             ) : (
               <Link

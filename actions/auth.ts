@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import connectDB from "@/lib/db";
 import UserModel from "@/lib/models/User";
 import { createSession, destroySession } from "@/lib/auth/session";
@@ -155,5 +156,6 @@ export async function login(
 // ──────────────────────────────────────────────
 export async function logout() {
   await destroySession();
+  revalidatePath("/", "layout");
   redirect("/");
 }
