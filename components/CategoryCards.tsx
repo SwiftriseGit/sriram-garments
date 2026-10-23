@@ -10,7 +10,8 @@ export default function CategoryCards() {
           href="/collections"
           className="relative group cursor-pointer h-[180px] sm:h-[200px] lg:h-[240px] rounded-xl sm:rounded-2xl overflow-hidden bg-zinc-900"
         >
-          <div className="absolute right-0 top-0 bottom-0 w-[40%] bg-zinc-800 rounded-tl-[80px]" />
+          {/* Ambient backlight glow */}
+          <div className="absolute -right-4 top-1/2 -translate-y-1/2 w-48 sm:w-60 h-48 sm:h-60 bg-zinc-800/80 rounded-full blur-2xl pointer-events-none" />
 
           <div className="relative z-10 p-5 sm:p-7 lg:p-8 flex flex-col justify-between h-full w-[55%]">
             <div>
@@ -33,12 +34,12 @@ export default function CategoryCards() {
           </div>
 
           {/* Garments Image */}
-          <div className="absolute -right-3 sm:-right-5 bottom-0 w-[50%] h-[85%] z-0 pointer-events-none">
+          <div className="absolute right-2 sm:right-4 bottom-2 sm:bottom-3 w-[46%] sm:w-[44%] h-[82%] sm:h-[86%] z-0 pointer-events-none">
             <Image
               src="/images/neatly-folded-garments.png"
               alt="Men's Collection"
               fill
-              className="object-contain object-bottom-right group-hover:scale-105 transition-transform duration-500"
+              className="object-contain object-bottom-right drop-shadow-[0_12px_24px_rgba(0,0,0,0.55)] group-hover:scale-105 transition-transform duration-500"
               sizes="(max-width: 768px) 50vw, 25vw"
             />
           </div>
