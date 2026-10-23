@@ -12,7 +12,7 @@ export default function CategoryCards() {
         >
           <div className="absolute right-0 top-0 bottom-0 w-[40%] bg-zinc-800 rounded-tl-[80px]" />
 
-          <div className="relative z-10 p-5 sm:p-7 lg:p-8 flex flex-col justify-between h-full">
+          <div className="relative z-10 p-5 sm:p-7 lg:p-8 flex flex-col justify-between h-full w-[55%]">
             <div>
               <h3 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white mb-1">
                 Men&apos;s
@@ -30,6 +30,17 @@ export default function CategoryCards() {
                 <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </div>
             </div>
+          </div>
+
+          {/* Garments Image */}
+          <div className="absolute right-0 bottom-0 w-[50%] h-[85%] z-0 pointer-events-none">
+            <Image
+              src="/images/neatly-folded-garments.png"
+              alt="Men's Collection"
+              fill
+              className="object-contain object-bottom-right group-hover:scale-105 transition-transform duration-500"
+              sizes="(max-width: 768px) 50vw, 25vw"
+            />
           </div>
         </a>
 
