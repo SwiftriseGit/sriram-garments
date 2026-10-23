@@ -14,6 +14,13 @@ export const metadata: Metadata = {
   title: "SriRam Garments — Quality Garments for Every You",
   description:
     "Shop premium quality shirts, t-shirts, jeans, ethnic wear and more at SriRam Garments. Comfortable, stylish and affordable clothing for men, women, and kids.",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icon.png", type: "image/png", sizes: "512x512" },
+    ],
+    apple: [{ url: "/apple-icon.png", sizes: "180x180", type: "image/png" }],
+  },
 };
 
 export default function RootLayout({
