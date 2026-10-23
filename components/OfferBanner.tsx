@@ -24,8 +24,8 @@ export default function OfferBanner({ data }: OfferBannerProps) {
     data?.coupons && data.coupons.length > 0 ? data.coupons : DEFAULT_COUPONS;
 
   return (
-    <section className="max-w-[1340px] mx-auto px-3 sm:px-4 md:px-8 py-4 sm:py-6">
-      <div className="bg-gradient-to-r from-orange-400 via-orange-500 to-orange-600 rounded-xl sm:rounded-2xl overflow-hidden shadow-sm">
+    <section className="max-w-335 mx-auto px-3 sm:px-4 md:px-8 py-4 sm:py-6">
+      <div className="bg-linear-to-r from-orange-400 via-orange-500 to-orange-600 rounded-xl sm:rounded-2xl overflow-hidden shadow-sm">
         <div className="flex flex-col lg:flex-row items-center gap-5 sm:gap-6 p-5 sm:p-6 md:p-8 lg:p-10">
           {/* Left — Offer Text */}
           <div className="flex-1 text-center lg:text-left">
@@ -52,7 +52,6 @@ export default function OfferBanner({ data }: OfferBannerProps) {
           {/* Right — Coupon Cards (Dynamic 1, 2, or max 3 cards) */}
           <div className="flex flex-wrap justify-center items-stretch gap-2.5 sm:gap-3.5">
             {coupons.map((coupon, idx) => {
-              // Ensure discount text looks clean (e.g. "10%" -> "10% OFF", or preserve if already has "OFF")
               const displayDiscount = coupon.discount.toUpperCase().includes("OFF")
                 ? coupon.discount
                 : `${coupon.discount} OFF`;
@@ -60,7 +59,7 @@ export default function OfferBanner({ data }: OfferBannerProps) {
               return (
                 <div
                   key={`${coupon.code}-${idx}`}
-                  className="bg-white rounded-lg sm:rounded-xl w-[115px] sm:w-[135px] md:w-[150px] overflow-hidden shadow-sm flex flex-col justify-between transition-transform duration-300 hover:-translate-y-0.5"
+                  className="bg-white rounded-lg sm:rounded-xl w-28.75 sm:w-33.75 md:w-37.5 overflow-hidden shadow-sm flex flex-col justify-between transition-transform duration-300 hover:-translate-y-0.5"
                 >
                   <div className="p-2.5 sm:p-3 pb-2 sm:pb-2.5 text-center relative">
                     {/* Small orange % badge */}

@@ -30,11 +30,12 @@ export default function SeasonSaleBanner({ data }: SeasonSaleBannerProps) {
           className="group block relative w-full overflow-hidden rounded-xl sm:rounded-2xl shadow-xs border border-zinc-200/60 bg-zinc-100 focus:outline-none"
         >
           {/* Responsive aspect ratio: 16/7 on mobile, 21/8 on tablet, 3/1 on desktop */}
-          <div className="relative w-full aspect-16/7 sm:aspect-21/8 md:aspect-3/1 min-h-36 sm:min-h-48 lg:min-h-56">
+          <div className="relative w-full aspect-16/7 sm:aspect-21/8 md:aspect-3/1 min-h-35 sm:min-h-50 lg:min-h-65">
             <Image
               src={imageUrl}
               alt="Season Promotional Banner"
               fill
+              unoptimized
               className="object-cover object-center group-hover:scale-[1.015] transition-transform duration-700"
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 95vw, 1340px"
               priority={false}
@@ -48,14 +49,15 @@ export default function SeasonSaleBanner({ data }: SeasonSaleBannerProps) {
   // Mode 2: Split Content Banner (Image Left, Details & Button Right)
   return (
     <section className="max-w-335 mx-auto px-3 sm:px-4 md:px-8 py-3 sm:py-5">
-      <div className="bg-[#fcf5eb] rounded-xl sm:rounded-2xl overflow-hidden relative flex flex-col md:flex-row items-center justify-between min-h-50 sm:min-h-56 border border-orange-100/80 shadow-xs">
+      <div className="bg-[#fcf5eb] rounded-xl sm:rounded-2xl overflow-hidden relative flex flex-col md:flex-row items-stretch justify-between min-h-50 sm:min-h-56 border border-orange-100/80 shadow-xs">
         {/* Left Side (Image Asset or Fallback Graphic) */}
-        <div className="w-full md:w-[38%] h-48 sm:h-56 md:h-full min-h-44 md:min-h-56 relative overflow-hidden bg-linear-to-tr from-orange-100 via-amber-100 to-orange-50 shrink-0">
+        <div className="w-full md:w-[38%] h-52 sm:h-64 md:h-auto min-h-45 md:min-h-56 relative overflow-hidden bg-linear-to-tr from-orange-100 via-amber-100 to-orange-50 shrink-0">
           {imageUrl ? (
             <Image
               src={imageUrl}
               alt={`${tagline} ${title}`}
               fill
+              unoptimized
               className="object-cover object-center"
               sizes="(max-width: 768px) 100vw, 38vw"
             />
@@ -93,7 +95,7 @@ export default function SeasonSaleBanner({ data }: SeasonSaleBannerProps) {
 
         {/* Far Right Badge (Desktop Accent) */}
         {badgeText && (
-          <div className="w-full md:w-[22%] h-auto md:h-full relative hidden lg:flex items-center justify-center p-5 shrink-0">
+          <div className="w-full md:w-[22%] h-auto md:h-full relative hidden lg:flex items-center justify-center p-5 shrink-0 self-center">
             <div className="bg-[#f9e9d6] w-20 h-20 xl:w-24 xl:h-24 rounded-full flex flex-col items-center justify-center text-center p-2 shadow-xs border border-orange-200/60 hover:scale-105 transition-transform">
               <p className="text-[9px] font-bold text-zinc-800 leading-tight tracking-wider uppercase">
                 {badgeText.split(" ").slice(0, 2).join(" ")}

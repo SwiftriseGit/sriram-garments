@@ -1,7 +1,17 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { ZoomIn, ZoomOut, RotateCw, Check, X, Move, Info, Sparkles } from "lucide-react";
+import {
+  ZoomIn,
+  ZoomOut,
+  RotateCw,
+  Check,
+  X,
+  Move,
+  Sparkles,
+  RefreshCw,
+} from "lucide-react";
+import { toast } from "sonner";
 
 interface ImageCropModalProps {
   isOpen: boolean;
@@ -31,18 +41,48 @@ export default function ImageCropModal({
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
 
   const containerRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
 
-  // Reset transforms whenever imageSrc or modal opens
+  // Measure container inner dimensions
+  const updateContainerDimensions = useCallback(() => {
+    if (containerRef.current) {
+      setContainerSize({
+        width: containerRef.current.clientWidth,
+        height: containerRef.current.clientHeight,
+      });
+    }
+  }, []);
+
+  // Reset transforms whenever modal opens or imageSrc changes
   useEffect(() => {
     if (isOpen) {
       setZoom(1);
       setRotation(0);
       setOffset({ x: 0, y: 0 });
+      setImageLoaded(false);
+
+      // Measure after DOM paint
+      requestAnimationFrame(() => {
+        updateContainerDimensions();
+      });
+
+      const handleResize = () => updateContainerDimensions();
+      window.addEventListener("resize", handleResize);
+      return () => window.removeEventListener("resize", handleResize);
     }
-  }, [isOpen, imageSrc, aspectRatio]);
+  }, [isOpen, imageSrc, aspectRatio, updateContainerDimensions]);
+
+  // If image is already completed in cache
+  useEffect(() => {
+    if (isOpen && imageRef.current && imageRef.current.complete && imageRef.current.naturalWidth > 0) {
+      setImageLoaded(true);
+      updateContainerDimensions();
+    }
+  }, [isOpen, imageSrc, updateContainerDimensions]);
 
   // Handle Drag / Pan (Mouse & Touch)
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -99,7 +139,7 @@ export default function ImageCropModal({
     }
   }, [isDragging, handleMouseMove, handleMouseUp]);
 
-  // Handle Wheel Zoom
+  // Wheel Zoom
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
     const delta = -e.deltaY * 0.0015;
@@ -111,11 +151,66 @@ export default function ImageCropModal({
     setRotation((prev) => (prev + 90) % 360);
   };
 
-  // Perform Final Crop on Canvas
+  // Reset tool
+  const handleReset = () => {
+    setZoom(1);
+    setOffset({ x: 0, y: 0 });
+    setRotation(0);
+  };
+
+  /**
+   * Calculate cover-fit dimensions for viewport & canvas.
+   * Takes 90° / 270° rotation into account so there are never black borders.
+   */
+  const calculateGeometry = (cW: number, cH: number) => {
+    const img = imageRef.current;
+    if (!img || !img.naturalWidth || !img.naturalHeight || cW === 0 || cH === 0) {
+      return null;
+    }
+
+    const isRotated = rotation % 180 !== 0;
+    const naturalAspect = img.naturalWidth / img.naturalHeight;
+    const effectiveAspect = isRotated ? 1 / naturalAspect : naturalAspect;
+
+    let effW: number, effH: number;
+    if (cW / cH > effectiveAspect) {
+      // Container is wider than rotated image -> fit width, height overflows
+      effW = cW;
+      effH = cW / effectiveAspect;
+    } else {
+      // Container is taller than rotated image -> fit height, width overflows
+      effH = cH;
+      effW = cH * effectiveAspect;
+    }
+
+    // Unrotated DOM element dimensions
+    const baseW = isRotated ? effH : effW;
+    const baseH = isRotated ? effW : effH;
+
+    return { baseW, baseH, effW, effH };
+  };
+
+  /**
+   * Apply crop by drawing exactly what is visible in the container
+   * onto a canvas of dimensions targetWidth × targetHeight.
+   */
   const handleApplyCrop = () => {
     const img = imageRef.current;
     const container = containerRef.current;
-    if (!img || !container) return;
+    if (!img || !container || !imageLoaded) return;
+
+    const cW = container.clientWidth;
+    const cH = container.clientHeight;
+    if (cW === 0 || cH === 0) {
+      toast.error("Crop container is initializing. Please try again.");
+      return;
+    }
+
+    const geom = calculateGeometry(cW, cH);
+    if (!geom) {
+      toast.error("Image dimensions could not be read.");
+      return;
+    }
 
     const canvas = document.createElement("canvas");
     canvas.width = targetWidth;
@@ -123,55 +218,82 @@ export default function ImageCropModal({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // High quality canvas rendering
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = "high";
 
-    const containerRect = container.getBoundingClientRect();
-    const scaleFactor = targetWidth / containerRect.width;
+    // Ratio between Canvas pixel resolution and CSS container size
+    const scaleFactor = targetWidth / cW;
+
+    // Center of image on Canvas
+    const canvasCenterX = (cW / 2 + offset.x) * scaleFactor;
+    const canvasCenterY = (cH / 2 + offset.y) * scaleFactor;
+
+    // Dimensions of image drawn on canvas
+    const drawW = geom.baseW * zoom * scaleFactor;
+    const drawH = geom.baseH * zoom * scaleFactor;
 
     ctx.save();
-    // Move origin to canvas center
-    ctx.translate(canvas.width / 2, canvas.height / 2);
+    // 1. Position origin at the image's center on the canvas
+    ctx.translate(canvasCenterX, canvasCenterY);
+    // 2. Rotate
     ctx.rotate((rotation * Math.PI) / 180);
-
-    // Apply offset & zoom relative to canvas coordinates
-    const drawX = offset.x * scaleFactor;
-    const drawY = offset.y * scaleFactor;
-    ctx.translate(drawX, drawY);
-
-    // Compute base image scaled dimensions inside the viewport
-    const imgAspect = img.naturalWidth / img.naturalHeight;
-    let baseWidth = containerRect.width;
-    let baseHeight = containerRect.width / imgAspect;
-
-    if (baseHeight < containerRect.height) {
-      baseHeight = containerRect.height;
-      baseWidth = containerRect.height * imgAspect;
-    }
-
-    const scaledWidth = baseWidth * zoom * scaleFactor;
-    const scaledHeight = baseHeight * zoom * scaleFactor;
-
-    ctx.drawImage(
-      img,
-      -scaledWidth / 2,
-      -scaledHeight / 2,
-      scaledWidth,
-      scaledHeight
-    );
-
+    // 3. Draw image centered at (0, 0)
+    ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
     ctx.restore();
 
     canvas.toBlob(
       (blob) => {
         if (blob) {
           onCropComplete(blob);
+        } else {
+          toast.error("Failed to crop image. Please try again.");
         }
       },
       "image/webp",
       0.92
     );
+  };
+
+  /**
+   * CSS styling for preview <img> so it precisely matches the canvas calculation.
+   */
+  const getImageStyle = (): React.CSSProperties => {
+    const container = containerRef.current;
+    const img = imageRef.current;
+
+    if (!container || !img || !imageLoaded || containerSize.width === 0) {
+      return {
+        opacity: 0,
+        position: "absolute",
+        pointerEvents: "none",
+      };
+    }
+
+    const geom = calculateGeometry(containerSize.width, containerSize.height);
+    if (!geom) {
+      return { opacity: 0, position: "absolute", pointerEvents: "none" };
+    }
+
+    const cW = containerSize.width;
+    const cH = containerSize.height;
+
+    return {
+      position: "absolute",
+      width: `${geom.baseW}px`,
+      height: `${geom.baseH}px`,
+      left: `${(cW - geom.baseW) / 2}px`,
+      top: `${(cH - geom.baseH) / 2}px`,
+      transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoom}) rotate(${rotation}deg)`,
+      transformOrigin: "center center",
+      transition: isDragging ? "none" : "transform 0.05s ease-out",
+      maxWidth: "none",
+      pointerEvents: "none" as const,
+    };
+  };
+
+  const handleImageLoad = () => {
+    setImageLoaded(true);
+    updateContainerDimensions();
   };
 
   if (!isOpen) return null;
@@ -187,7 +309,7 @@ export default function ImageCropModal({
             </div>
             <div>
               <h3 className="text-sm sm:text-base font-bold text-white leading-tight">
-                Crop &amp; Position Banner
+                Crop &amp; Frame Banner Visual
               </h3>
               <p className="text-[11px] sm:text-xs text-zinc-400 mt-0.5">
                 {aspectRatioLabel}
@@ -217,20 +339,24 @@ export default function ImageCropModal({
             style={{ aspectRatio: `${aspectRatio}` }}
             className="relative w-full max-h-[50vh] sm:max-h-[55vh] rounded-xl overflow-hidden border-2 border-orange-500/80 shadow-2xl bg-black flex items-center justify-center cursor-grab active:cursor-grabbing group"
           >
-            {/* The Raw Image */}
+            {/* The Raw Image — sized to cover-fit the container */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               ref={imageRef}
               src={imageSrc}
               alt="Crop target"
               draggable={false}
-              style={{
-                transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoom}) rotate(${rotation}deg)`,
-                transition: isDragging ? "none" : "transform 0.05s ease-out",
-                maxWidth: "none",
-              }}
-              className="absolute pointer-events-none origin-center max-w-none"
+              crossOrigin="anonymous"
+              onLoad={handleImageLoad}
+              style={getImageStyle()}
             />
+
+            {!imageLoaded && (
+              <div className="absolute inset-0 flex items-center justify-center text-zinc-400 gap-2">
+                <RefreshCw className="w-5 h-5 animate-spin text-orange-500" />
+                <span className="text-xs">Loading image preview...</span>
+              </div>
+            )}
 
             {/* Rule-of-Thirds Grid Overlay */}
             <div className="absolute inset-0 pointer-events-none grid grid-cols-3 grid-rows-3 border border-white/20">
@@ -240,15 +366,15 @@ export default function ImageCropModal({
               <div className="border-r border-b border-white/15" />
               <div className="border-r border-b border-white/15" />
               <div className="border-b border-white/15" />
-              <div className="border-r border-white/15" />
-              <div className="border-r border-white/15" />
+              <div className="border-r border-b border-white/15" />
+              <div className="border-r border-b border-white/15" />
               <div />
             </div>
 
             {/* Hint Badge */}
             <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded-md text-[10px] text-zinc-300 font-medium flex items-center gap-1.5 pointer-events-none">
               <Move className="w-3 h-3 text-orange-400" />
-              <span>Drag to reposition image</span>
+              <span>Drag to reposition • Scroll or slider to zoom</span>
             </div>
           </div>
         </div>
@@ -287,11 +413,7 @@ export default function ImageCropModal({
 
               <button
                 type="button"
-                onClick={() => {
-                  setZoom(1);
-                  setOffset({ x: 0, y: 0 });
-                  setRotation(0);
-                }}
+                onClick={handleReset}
                 className="px-2.5 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition-colors text-xs cursor-pointer font-medium"
               >
                 Reset
@@ -302,7 +424,7 @@ export default function ImageCropModal({
           {/* Action Buttons */}
           <div className="flex items-center justify-between pt-2 border-t border-zinc-900 gap-3">
             <span className="text-[11px] text-zinc-500 hidden sm:inline-block">
-              Cropped output: {targetWidth} × {targetHeight} px (WebP)
+              Export format: {targetWidth} × {targetHeight} px (WebP)
             </span>
 
             <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
@@ -317,14 +439,14 @@ export default function ImageCropModal({
 
               <button
                 type="button"
-                disabled={isUploading}
+                disabled={isUploading || !imageLoaded}
                 onClick={handleApplyCrop}
                 className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-5 py-2 rounded-xl text-xs sm:text-sm font-bold bg-orange-500 hover:bg-orange-600 text-white shadow-md active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
               >
                 {isUploading ? (
                   <>
                     <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    <span>Uploading to R2...</span>
+                    <span>Uploading cropped WebP to R2...</span>
                   </>
                 ) : (
                   <>

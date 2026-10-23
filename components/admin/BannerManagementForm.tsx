@@ -127,7 +127,8 @@ export default function BannerManagementForm({
   };
 
   // ──────────────────────────────────────────────
-  // Step 2: User applies crop -> Upload Cropped Blob to R2
+  // ──────────────────────────────────────────────
+  // Step 2: User applies crop -> Upload Cropped Blob to R2 & Auto-Publish
   // ──────────────────────────────────────────────
   const handleCroppedUpload = async (croppedBlob: Blob) => {
     setIsUploading(true);
@@ -137,6 +138,8 @@ export default function BannerManagementForm({
         .replace(/[^a-zA-Z0-9_-]/g, "_")
         .toLowerCase();
       const generatedName = `banner-${baseName || "promo"}-${Date.now()}.webp`;
+
+      let uploadedUrl = "";
 
       // 1. Request presigned upload URL from R2 server action
       const presigned = await getUploadUrl(generatedName, "image/webp");
@@ -149,49 +152,62 @@ export default function BannerManagementForm({
         });
 
         if (uploadRes.ok) {
-          // If replacing an existing R2 image, clean up the previous file
-          if (seasonSaleBanner.imageUrl && seasonSaleBanner.imageUrl !== presigned.fileUrl) {
-            deleteR2Object(seasonSaleBanner.imageUrl).catch(() => {});
-          }
-
-          setSeasonSaleBanner((prev) => ({
-            ...prev,
-            imageUrl: presigned.fileUrl,
-          }));
-          toast.success("Banner image cropped & uploaded to R2 successfully!");
-          setIsCropModalOpen(false);
-          setIsUploading(false);
-          return;
+          uploadedUrl = presigned.fileUrl;
         }
       }
 
-      // 2. Fallback to /api/upload
-      const croppedFile = new File([croppedBlob], generatedName, {
-        type: "image/webp",
-      });
-      const formData = new FormData();
-      formData.append("files", croppedFile);
+      // 2. Fallback to /api/upload if presigned PUT direct upload failed
+      if (!uploadedUrl) {
+        const croppedFile = new File([croppedBlob], generatedName, {
+          type: "image/webp",
+        });
+        const formData = new FormData();
+        formData.append("files", croppedFile);
 
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
+        const res = await fetch("/api/upload", {
+          method: "POST",
+          body: formData,
+        });
 
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || "Upload failed");
-      }
-
-      const data = await res.json();
-      if (data.urls && data.urls[0]) {
-        if (seasonSaleBanner.imageUrl && seasonSaleBanner.imageUrl !== data.urls[0]) {
-          deleteR2Object(seasonSaleBanner.imageUrl).catch(() => {});
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error || "Upload failed");
         }
 
-        setSeasonSaleBanner((prev) => ({ ...prev, imageUrl: data.urls[0] }));
-        toast.success("Banner image cropped & uploaded successfully!");
-        setIsCropModalOpen(false);
+        const data = await res.json();
+        if (data.urls && data.urls[0]) {
+          uploadedUrl = data.urls[0];
+        }
       }
+
+      if (!uploadedUrl) {
+        throw new Error("Could not obtain public URL for uploaded banner.");
+      }
+
+      // If replacing an existing R2 image, clean up the previous file
+      if (seasonSaleBanner.imageUrl && seasonSaleBanner.imageUrl !== uploadedUrl) {
+        deleteR2Object(seasonSaleBanner.imageUrl).catch(() => {});
+      }
+
+      const updatedBanner: ISeasonSaleBannerConfig = {
+        ...seasonSaleBanner,
+        imageUrl: uploadedUrl,
+      };
+      setSeasonSaleBanner(updatedBanner);
+
+      // Persist to database immediately so changes reflect on storefront without delay
+      const saveResult = await updateBannerSettings({
+        offerBanner,
+        seasonSaleBanner: updatedBanner,
+      });
+
+      if (saveResult.success) {
+        toast.success("Banner image cropped, uploaded & published to storefront!");
+      } else {
+        toast.warning("Uploaded to R2. Please click 'Save & Publish' to persist settings.");
+      }
+
+      setIsCropModalOpen(false);
     } catch (err: any) {
       console.error("Cropped upload error:", err);
       toast.error(err.message || "Failed to upload image. Please try again.");
@@ -201,7 +217,7 @@ export default function BannerManagementForm({
   };
 
   // ──────────────────────────────────────────────
-  // Step 3: Remove Image -> Delete from Cloudflare R2
+  // Step 3: Remove Image -> Delete from Cloudflare R2 & Auto-Save
   // ──────────────────────────────────────────────
   const handleRemoveImage = async () => {
     if (!seasonSaleBanner.imageUrl) return;
@@ -209,20 +225,36 @@ export default function BannerManagementForm({
     setIsDeletingImage(true);
     try {
       const targetUrl = seasonSaleBanner.imageUrl;
-      // Call existing deleteR2Object server action
       const result = await deleteR2Object(targetUrl);
 
-      if (result.success) {
-        toast.success("Image removed and deleted from Cloudflare R2.");
-      } else {
-        toast.warning("Image removed locally. Server note: " + (result.error || "R2 cleanup skipped."));
-      }
+      const updatedBanner: ISeasonSaleBannerConfig = {
+        ...seasonSaleBanner,
+        imageUrl: "",
+      };
+      setSeasonSaleBanner(updatedBanner);
 
-      setSeasonSaleBanner((prev) => ({ ...prev, imageUrl: "" }));
+      // Persist removal to database immediately
+      await updateBannerSettings({
+        offerBanner,
+        seasonSaleBanner: updatedBanner,
+      });
+
+      if (result.success) {
+        toast.success("Image removed from banner and deleted from Cloudflare R2.");
+      } else {
+        toast.info("Image removed from banner.");
+      }
     } catch (err: any) {
       console.error("Failed to delete image from R2:", err);
-      // Still remove locally so admin can re-upload
-      setSeasonSaleBanner((prev) => ({ ...prev, imageUrl: "" }));
+      const updatedBanner: ISeasonSaleBannerConfig = {
+        ...seasonSaleBanner,
+        imageUrl: "",
+      };
+      setSeasonSaleBanner(updatedBanner);
+      await updateBannerSettings({
+        offerBanner,
+        seasonSaleBanner: updatedBanner,
+      });
       toast.error("Removed image from banner.");
     } finally {
       setIsDeletingImage(false);
@@ -744,15 +776,16 @@ export default function BannerManagementForm({
                 <div
                   className={`relative w-full ${
                     isFullBanner
-                      ? "aspect-3/1 max-h-55"
-                      : "aspect-video sm:aspect-21/9 max-h-55"
+                      ? "aspect-3/1 min-h-36 sm:min-h-48 md:min-h-56 max-h-80"
+                      : "aspect-video sm:aspect-21/9 min-h-40 sm:min-h-52 max-h-80"
                   }`}
                 >
                   <Image
                     src={seasonSaleBanner.imageUrl}
                     alt="Active Banner Image"
                     fill
-                    className="object-cover"
+                    unoptimized
+                    className="object-cover object-center"
                   />
                 </div>
                 <div className="p-3 bg-white border-t border-zinc-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">

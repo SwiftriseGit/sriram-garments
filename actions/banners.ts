@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath, updateTag } from "next/cache";
+import { revalidatePath, updateTag, revalidateTag } from "next/cache";
 import connectDB from "@/lib/db";
 import BannerSettingsModel, {
   IOfferBannerConfig,
@@ -52,9 +52,14 @@ export async function updateBannerSettings(data: {
     ).lean();
 
     // Invalidate Next.js 16 cache tag & revalidate paths
-    updateTag("banners");
-    revalidatePath("/");
-    revalidatePath("/admin/banners");
+    try {
+      updateTag("banners");
+    } catch {}
+    try {
+      revalidateTag("banners", "max");
+    } catch {}
+    revalidatePath("/", "layout");
+    revalidatePath("/admin/banners", "page");
 
     return {
       success: true,
