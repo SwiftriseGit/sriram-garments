@@ -63,15 +63,15 @@ export default function ShopByCategory() {
             href={cat.href}
             className="relative group block cursor-pointer focus:outline-none select-none"
           >
-            {/* The Card Box - strictly wraps name, details, and button */}
-            <div className="bg-zinc-100 group-hover:bg-zinc-100/90 rounded-2xl h-[135px] sm:h-[150px] lg:h-[165px] w-[68%] sm:w-[70%] lg:w-[72%] p-3.5 sm:p-5 flex flex-col justify-between border border-zinc-200/60 group-hover:border-zinc-300 group-hover:shadow-sm transition-all duration-300">
-              <div>
-                <h3 className="text-xs sm:text-base lg:text-lg font-bold text-zinc-900 group-hover:text-orange-600 transition-colors leading-tight">
+            {/* The Card Box */}
+            <div className="bg-zinc-100 group-hover:bg-zinc-100/90 rounded-2xl h-[135px] sm:h-[150px] lg:h-[165px] w-full p-3.5 sm:p-5 flex flex-col justify-between border border-zinc-200/60 group-hover:border-zinc-300 group-hover:shadow-sm transition-all duration-300">
+              <div className="w-[54%] sm:w-[52%]">
+                <h3 className="text-sm sm:text-base lg:text-lg font-bold text-zinc-900 group-hover:text-orange-600 transition-colors leading-tight">
                   {cat.name}
                 </h3>
-                <p className="text-[10px] sm:text-[12px] text-zinc-500 mt-1 leading-snug">
+                <p className="text-[11px] sm:text-[12px] text-zinc-500 mt-1 leading-snug">
                   Starting at{" "}
-                  <span className="font-semibold text-zinc-800 block">
+                  <span className="font-semibold text-zinc-800">
                     {cat.startingPrice}
                   </span>
                 </p>
@@ -85,14 +85,14 @@ export default function ShopByCategory() {
               </div>
             </div>
 
-            {/* Product Image - Outside the border on transparent background, bigger & floating */}
-            <div className="absolute right-0 top-1/2 -translate-y-1/2 w-[58%] sm:w-[60%] lg:w-[62%] h-[120%] sm:h-[130%] lg:h-[135%] z-10 pointer-events-none">
+            {/* Product Image - Smaller & static (no pop-out hover effect) */}
+            <div className="absolute right-2 sm:right-3.5 top-1/2 -translate-y-1/2 w-[44%] sm:w-[46%] h-[78%] sm:h-[84%] z-10 pointer-events-none">
               <Image
                 src={cat.image}
                 alt={cat.alt}
                 fill
-                className="object-contain object-right drop-shadow-[0_8px_18px_rgba(0,0,0,0.14)] group-hover:scale-110 group-hover:-translate-y-1 transition-all duration-500"
-                sizes="(max-width: 640px) 50vw, 25vw"
+                className="object-contain object-right drop-shadow-sm"
+                sizes="(max-width: 640px) 45vw, 25vw"
               />
             </div>
           </Link>
