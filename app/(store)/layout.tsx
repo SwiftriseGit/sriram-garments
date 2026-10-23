@@ -4,18 +4,22 @@ import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import { getOptionalSession } from "@/lib/auth/dal";
 
-export default async function StoreLayout({
+// Dedicated Server Component wrapper for streaming dynamic session resolution
+async function StoreHeader() {
+  const user = await getOptionalSession();
+  return <SiteHeader initialUser={user} />;
+}
+
+export default function StoreLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const user = await getOptionalSession();
-
   return (
     <>
       <TopBar />
       <Suspense fallback={<header className="h-16 bg-white border-b border-zinc-200" />}>
-        <SiteHeader initialUser={user} />
+        <StoreHeader />
       </Suspense>
       <main className="flex-1">{children}</main>
       <SiteFooter />
