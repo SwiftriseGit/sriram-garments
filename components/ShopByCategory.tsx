@@ -1,6 +1,5 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Card, CardContent } from "@/components/ui/card";
 import { ArrowRight } from "lucide-react";
 
 const categories = [
@@ -57,43 +56,45 @@ export default function ShopByCategory() {
       </div>
 
       {/* Category Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5 lg:gap-6 pt-3 pb-5">
         {categories.map((cat) => (
-          <Link key={cat.name} href={cat.href} className="group block focus:outline-none">
-            <Card
-              className={`${cat.bg} border-none overflow-hidden relative h-[130px] sm:h-[145px] lg:h-[160px] rounded-xl sm:rounded-2xl shadow-none hover:shadow-md transition-shadow`}
-            >
-              <CardContent className="p-3.5 sm:p-5 flex flex-col justify-between h-full relative z-10 w-[55%]">
-                <div>
-                  <h3 className="text-base sm:text-lg font-semibold text-zinc-900 group-hover:text-orange-600 transition-colors">
-                    {cat.name}
-                  </h3>
-                  <p className="text-[11px] sm:text-[12px] text-zinc-500 mt-0.5">
-                    Starting at{" "}
-                    <span className="font-semibold text-zinc-700">
-                      {cat.startingPrice}
-                    </span>
-                  </p>
-                </div>
-                <div
-                  aria-label={`Shop ${cat.name}`}
-                  className="w-6 h-6 sm:w-7 sm:h-7 rounded-full border border-zinc-300 text-zinc-500 flex items-center justify-center group-hover:bg-orange-500 group-hover:text-white group-hover:border-orange-500 transition-colors mt-2"
-                >
-                  <ArrowRight className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                </div>
-              </CardContent>
-
-              {/* Product Cutout Image */}
-              <div className="absolute right-1 sm:right-2 bottom-1 sm:bottom-2 w-[46%] sm:w-[48%] h-[82%] sm:h-[86%] z-0 pointer-events-none">
-                <Image
-                  src={cat.image}
-                  alt={cat.alt}
-                  fill
-                  className="object-contain object-bottom-right drop-shadow-sm group-hover:scale-105 transition-transform duration-500"
-                  sizes="(max-width: 640px) 45vw, 25vw"
-                />
+          <Link
+            key={cat.name}
+            href={cat.href}
+            className="relative group block cursor-pointer focus:outline-none select-none"
+          >
+            {/* The Card Box - strictly wraps name, details, and button */}
+            <div className="bg-zinc-100 group-hover:bg-zinc-100/90 rounded-2xl h-[135px] sm:h-[150px] lg:h-[165px] w-[60%] sm:w-[62%] p-3.5 sm:p-5 flex flex-col justify-between border border-zinc-200/60 group-hover:border-zinc-300 group-hover:shadow-sm transition-all duration-300">
+              <div>
+                <h3 className="text-sm sm:text-base lg:text-lg font-bold text-zinc-900 group-hover:text-orange-600 transition-colors leading-tight">
+                  {cat.name}
+                </h3>
+                <p className="text-[11px] sm:text-[12px] text-zinc-500 mt-1 leading-snug">
+                  Starting at{" "}
+                  <span className="font-semibold text-zinc-800 block sm:inline">
+                    {cat.startingPrice}
+                  </span>
+                </p>
               </div>
-            </Card>
+
+              <div
+                aria-label={`Shop ${cat.name}`}
+                className="w-6 h-6 sm:w-7 sm:h-7 rounded-full border border-zinc-300 bg-white text-zinc-600 flex items-center justify-center group-hover:bg-orange-500 group-hover:text-white group-hover:border-orange-500 transition-colors mt-2"
+              >
+                <ArrowRight className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+              </div>
+            </div>
+
+            {/* Product Image - Outside the border on transparent background, bigger & floating */}
+            <div className="absolute right-0 top-1/2 -translate-y-1/2 w-[54%] sm:w-[56%] lg:w-[58%] h-[120%] sm:h-[130%] lg:h-[135%] z-10 pointer-events-none">
+              <Image
+                src={cat.image}
+                alt={cat.alt}
+                fill
+                className="object-contain object-right drop-shadow-[0_8px_18px_rgba(0,0,0,0.14)] group-hover:scale-110 group-hover:-translate-y-1 transition-all duration-500"
+                sizes="(max-width: 640px) 50vw, 25vw"
+              />
+            </div>
           </Link>
         ))}
       </div>
