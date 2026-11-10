@@ -43,9 +43,9 @@ import { logout } from "@/actions/auth";
 
 const navLinks = [
   { label: "Home", href: "/" },
+  { label: "About Us", href: "/pages/about-us" },
   { label: "Shop All", href: "/collections" },
   { label: "Contact", href: "/pages/contact" },
-  { label: "About Us", href: "/pages/about-us" },
 ];
 
 export interface SessionUser {
