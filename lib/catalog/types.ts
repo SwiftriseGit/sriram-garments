@@ -5,6 +5,10 @@
 
 export type CategorySlug = "shirts" | "t-shirts" | "jeans" | "trousers";
 
+export type JeansSubType = "slim" | "ankle" | "straight" | "baggy";
+export type TShirtSubType = "half" | "full";
+export type SubType = JeansSubType | TShirtSubType;
+
 export type Size = "S" | "M" | "L" | "XL" | "XXL";
 
 export interface ProductColor {
@@ -36,6 +40,7 @@ export interface Product {
   highlights: string[];
   fabric: string;
   fit: string;
+  subType?: string | null;
   /** Higher = newer (used for "Date, new to old") */
   addedRank: number;
   salesCount: number;

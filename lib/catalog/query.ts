@@ -1,4 +1,5 @@
 import {
+  ALL_SUBTYPE_OPTIONS,
   AVAILABILITY_OPTIONS,
   CATEGORY_OPTIONS,
   DEFAULT_SORT,
@@ -18,6 +19,7 @@ import {
  */
 export interface CollectionQuery {
   category: string[];
+  subType: string[];
   size: string[];
   availability: string[];
   price: string[];
@@ -25,14 +27,15 @@ export interface CollectionQuery {
   page: number;
 }
 
-export type FilterKey = "category" | "size" | "availability" | "price";
+export type FilterKey = "category" | "subType" | "size" | "availability" | "price";
 
-export const FILTER_KEYS: FilterKey[] = ["category", "size", "availability", "price"];
+export const FILTER_KEYS: FilterKey[] = ["category", "subType", "size", "availability", "price"];
 
 type RawSearchParams = Record<string, string | string[] | undefined>;
 
 const ALLOWED: Record<FilterKey, readonly string[]> = {
   category: CATEGORY_OPTIONS.map((o) => o.value),
+  subType: ALL_SUBTYPE_OPTIONS.map((o) => o.value),
   size: SIZE_OPTIONS,
   availability: AVAILABILITY_OPTIONS.map((o) => o.value),
   price: PRICE_OPTIONS.map((o) => o.value),
@@ -61,6 +64,7 @@ export function parseCollectionQuery(raw: RawSearchParams): CollectionQuery {
 
   return {
     category: readList(raw, "category"),
+    subType: readList(raw, "subType"),
     size: readList(raw, "size"),
     availability: readList(raw, "availability"),
     price: readList(raw, "price"),

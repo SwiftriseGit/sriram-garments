@@ -42,7 +42,7 @@ export default function CheckoutPage() {
   });
 
   const total = subtotal();
-  const shipping = total >= 999 ? 0 : 79;
+  const shipping = total >= 2999 ? 0 : 79;
   const grandTotal = total + shipping;
 
   if (items.length === 0) {
@@ -111,7 +111,7 @@ export default function CheckoutPage() {
       {/* Trust badges */}
       <div className="flex items-center justify-center gap-6 sm:gap-10 mb-10 text-zinc-400 text-xs font-medium">
         <span className="flex items-center gap-1.5"><Lock className="w-3.5 h-3.5" /> Secure Checkout</span>
-        <span className="flex items-center gap-1.5"><Truck className="w-3.5 h-3.5" /> Free Shipping above ₹999</span>
+        <span className="flex items-center gap-1.5"><Truck className="w-3.5 h-3.5" /> Free Shipping above ₹2999</span>
         <span className="flex items-center gap-1.5"><Shield className="w-3.5 h-3.5" /> 7-Day Easy Returns</span>
       </div>
 
@@ -142,7 +142,7 @@ export default function CheckoutPage() {
                   <input
                     type="tel"
                     {...register("phone", { required: "Phone is required" })}
-                    placeholder="+91 98765 43210"
+                    placeholder="+91 XXXXXXXXXX"
                     className="w-full px-3.5 py-2 border border-zinc-200 rounded-xl text-sm focus:ring-2 focus:ring-zinc-900 outline-hidden transition-all"
                   />
                   {errors.phone && <p className="text-xs text-red-500 mt-1">{errors.phone.message}</p>}
@@ -152,7 +152,7 @@ export default function CheckoutPage() {
                   <input
                     type="email"
                     {...register("email", { required: "Email is required" })}
-                    placeholder="john@example.com"
+                    placeholder="you@example.com"
                     className="w-full px-3.5 py-2 border border-zinc-200 rounded-xl text-sm focus:ring-2 focus:ring-zinc-900 outline-hidden transition-all"
                   />
                   {errors.email && <p className="text-xs text-red-500 mt-1">{errors.email.message}</p>}

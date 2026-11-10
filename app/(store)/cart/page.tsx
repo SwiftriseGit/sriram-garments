@@ -11,7 +11,7 @@ export default function CartPage() {
     useCartStore();
 
   const total = subtotal();
-  const shipping = total > 999 ? 0 : 99;
+  const shipping = total >= 2999 ? 0 : 99;
   const grandTotal = total + shipping;
 
   if (items.length === 0) {
@@ -170,7 +170,7 @@ export default function CartPage() {
               {shipping > 0 && (
                 <p className="text-xs text-emerald-600 flex items-center gap-1">
                   <Tag className="w-3 h-3" />
-                  Free shipping on orders above ₹999
+                  Free shipping on orders above ₹2999
                 </p>
               )}
             </div>

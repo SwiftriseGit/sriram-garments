@@ -36,7 +36,7 @@ export async function generateMetadata({
 }
 
 const PERKS = [
-  { icon: Truck, title: "Free shipping", text: "On orders above ₹999" },
+  { icon: Truck, title: "Free shipping", text: "On orders above ₹2999" },
   { icon: RotateCcw, title: "Easy returns", text: "7-day hassle-free" },
   { icon: Banknote, title: "Cash on delivery", text: "Available across India" },
 ];
@@ -227,7 +227,7 @@ export default async function ProductPage({
             <Accordion title="Shipping & Returns">
               <p>
                 Orders ship within 24–48 hours and arrive in 3–7 business days. Free shipping on
-                orders above ₹999. Not the right fit? Return or exchange within 7 days — see our{" "}
+                orders above ₹2999. Not the right fit? Return or exchange within 7 days — see our{" "}
                 <Link href="/pages/return-policy" className="text-orange-500 underline underline-offset-2">
                   return policy
                 </Link>

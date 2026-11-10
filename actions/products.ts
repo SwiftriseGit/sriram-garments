@@ -64,9 +64,10 @@ export async function saveProductAction(formData: FormData) {
     ? highlightsStr.split("\n").map((s) => s.trim()).filter(Boolean)
     : [];
 
-  // Fabric & Fit
+  // Fabric & Fit & Sub-Type
   const fabric = (formData.get("fabric") as string) || "";
   const fit = (formData.get("fit") as string) || "";
+  const subType = (formData.get("subType") as string) || "";
 
   // Coupon
   const couponCode = (formData.get("couponCode") as string) || null;
@@ -101,6 +102,7 @@ export async function saveProductAction(formData: FormData) {
     highlights,
     fabric,
     fit,
+    subType: subType.trim() || null,
     color: {
       name: colorName || "Default",
       hex: colorHex || "#000000",

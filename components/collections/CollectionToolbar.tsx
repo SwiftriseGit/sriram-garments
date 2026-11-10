@@ -3,6 +3,7 @@
 import { ChevronDown, SlidersHorizontal, X } from "lucide-react";
 import { useCollection } from "./CollectionProvider";
 import {
+  ALL_SUBTYPE_OPTIONS,
   AVAILABILITY_OPTIONS,
   CATEGORY_OPTIONS,
   PRICE_OPTIONS,
@@ -13,6 +14,7 @@ import { countActiveFilters, FILTER_KEYS, type FilterKey } from "@/lib/catalog/q
 
 const LABELS: Record<FilterKey, Record<string, string>> = {
   category: Object.fromEntries(CATEGORY_OPTIONS.map((o) => [o.value, o.label])),
+  subType: Object.fromEntries(ALL_SUBTYPE_OPTIONS.map((o) => [o.value, o.label])),
   availability: Object.fromEntries(AVAILABILITY_OPTIONS.map((o) => [o.value, o.label])),
   price: Object.fromEntries(PRICE_OPTIONS.map((o) => [o.value, o.label])),
   size: {},

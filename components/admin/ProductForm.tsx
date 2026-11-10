@@ -27,6 +27,7 @@ const AVAILABLE_SIZES = ["S", "M", "L", "XL", "XXL"];
 interface ProductFormValues {
   name: string;
   category: string;
+  subType?: string;
   originalPrice: number;
   salePrice: number | null;
   isSale: boolean;
@@ -62,6 +63,7 @@ export default function ProductForm({ product }: { product?: any }) {
     defaultValues: {
       name: product?.name || "",
       category: product?.category || "t-shirts",
+      subType: product?.subType || "",
       originalPrice: product?.originalPrice ?? product?.price ?? 999,
       salePrice: product?.salePrice ?? null,
       isSale: product?.isSale ?? false,
@@ -89,6 +91,7 @@ export default function ProductForm({ product }: { product?: any }) {
   const watchColorHex = watch("colorHex");
   const watchSizes = watch("sizes") || [];
   const watchImages = watch("images") || [];
+  const watchCategory = watch("category");
 
   // Calculate live discount percentage
   const discountPercent =
@@ -119,6 +122,9 @@ export default function ProductForm({ product }: { product?: any }) {
 
       formData.append("name", data.name.trim());
       formData.append("category", data.category);
+      if (data.subType) {
+        formData.append("subType", data.subType);
+      }
       formData.append("originalPrice", String(data.originalPrice));
       if (data.isSale && data.salePrice != null) {
         formData.append("salePrice", String(data.salePrice));
@@ -492,6 +498,34 @@ export default function ProductForm({ product }: { product?: any }) {
                 ))}
               </select>
             </div>
+
+            {(watchCategory === "jeans" || watchCategory === "t-shirts") && (
+              <div>
+                <label className="block text-xs font-semibold text-zinc-700 mb-1.5">
+                  {watchCategory === "jeans" ? "Jeans Fit / Sub-Type" : "Sleeve Style / Sub-Type"}
+                </label>
+                <select
+                  {...register("subType")}
+                  className="w-full px-3 py-2 text-sm border border-zinc-200 rounded-xl bg-white focus:ring-2 focus:ring-zinc-950 focus:outline-hidden font-medium"
+                >
+                  <option value="">None / Standard</option>
+                  {watchCategory === "jeans" && (
+                    <>
+                      <option value="slim">Slim Fit</option>
+                      <option value="ankle">Ankle Length</option>
+                      <option value="straight">Straight Fit</option>
+                      <option value="baggy">Baggy Fit</option>
+                    </>
+                  )}
+                  {watchCategory === "t-shirts" && (
+                    <>
+                      <option value="half">Half Sleeve</option>
+                      <option value="full">Full Sleeve</option>
+                    </>
+                  )}
+                </select>
+              </div>
+            )}
 
             {/* Sizes Multi-Select */}
             <div>

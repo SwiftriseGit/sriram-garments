@@ -23,21 +23,58 @@ export default function ContactPage() {
           {/* Contact Info Cards */}
           <div className="grid grid-cols-2 gap-3 sm:gap-4">
             {[
-              { icon: MapPin, title: "Visit Us", lines: ["123 Fashion Street,", "Bhubaneswar, Odisha 751001"] },
-              { icon: Phone, title: "Call Us", lines: ["+91 98765 43210", "Mon-Sat: 10am - 8pm"] },
-              { icon: Mail, title: "Email Us", lines: ["support@sriramgarments.in"] },
-              { icon: Clock, title: "Working Hours", lines: ["Monday - Saturday", "10:00 AM - 08:00 PM"] },
-            ].map((item) => (
-              <div key={item.title} className="bg-zinc-50 rounded-xl sm:rounded-2xl p-4 sm:p-5 border border-zinc-100 group hover:border-orange-100 hover:bg-orange-50/30 transition-colors">
-                <div className="w-9 h-9 sm:w-10 sm:h-10 bg-orange-50 text-orange-500 rounded-full flex items-center justify-center mb-3 group-hover:bg-orange-100 transition-colors">
-                  <item.icon className="w-4 h-4 sm:w-5 sm:h-5" />
+              {
+                icon: MapPin,
+                title: "Visit Us",
+                lines: ["SriRam Garments", "Odisha, India"],
+                link: "https://www.google.com/maps/place/18%C2%B051'29.4%22N+82%C2%B034'24.0%22E/@18.8581581,82.5707588,17z/data=!3m1!4b1!4m4!3m3!8m2!3d18.8581581!4d82.5733337?hl=en&entry=ttu&g_ep=EgoyMDI2MTEwNC4wIKXMDSoASAFQAw%3D%3D",
+              },
+              {
+                icon: Phone,
+                title: "Call Us",
+                lines: ["+91 7735482919", "Mon-Sat: 10am - 9pm"],
+                link: "tel:+917735482919",
+              },
+              {
+                icon: Mail,
+                title: "Email Us",
+                lines: ["sriramgarments959@gmail.com"],
+                link: "mailto:sriramgarments959@gmail.com",
+              },
+              {
+                icon: Clock,
+                title: "Working Hours",
+                lines: ["Monday - Saturday", "10:00 AM - 09:00 PM"],
+              },
+            ].map((item) => {
+              const Content = (
+                <div className="h-full bg-zinc-50 rounded-xl sm:rounded-2xl p-4 sm:p-5 border border-zinc-100 group hover:border-orange-100 hover:bg-orange-50/30 transition-colors">
+                  <div className="w-9 h-9 sm:w-10 sm:h-10 bg-orange-50 text-orange-500 rounded-full flex items-center justify-center mb-3 group-hover:bg-orange-100 transition-colors">
+                    <item.icon className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </div>
+                  <h3 className="font-bold text-[13px] sm:text-[14px] text-zinc-900 mb-1">{item.title}</h3>
+                  {item.lines.map((line) => (
+                    <p key={line} className="text-[11px] sm:text-[12px] font-medium text-zinc-500 leading-relaxed truncate">{line}</p>
+                  ))}
                 </div>
-                <h3 className="font-bold text-[13px] sm:text-[14px] text-zinc-900 mb-1">{item.title}</h3>
-                {item.lines.map((line) => (
-                  <p key={line} className="text-[11px] sm:text-[12px] font-medium text-zinc-500 leading-relaxed">{line}</p>
-                ))}
-              </div>
-            ))}
+              );
+
+              return item.link ? (
+                <a
+                  key={item.title}
+                  href={item.link}
+                  target={item.link.startsWith("http") ? "_blank" : undefined}
+                  rel={item.link.startsWith("http") ? "noopener noreferrer" : undefined}
+                  className="block h-full"
+                >
+                  {Content}
+                </a>
+              ) : (
+                <div key={item.title} className="h-full">
+                  {Content}
+                </div>
+              );
+            })}
           </div>
 
           {/* Contact Form */}
@@ -60,7 +97,7 @@ export default function ContactPage() {
                     type="email"
                     id="contact-email"
                     className="w-full px-3.5 py-2.5 rounded-lg sm:rounded-xl border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors text-[12px] sm:text-[13px] font-medium text-zinc-900 placeholder:text-zinc-400 bg-white"
-                    placeholder="john@example.com"
+                    placeholder="you@example.com"
                   />
                 </div>
               </div>
@@ -84,15 +121,26 @@ export default function ContactPage() {
         </div>
 
         {/* Right — Map */}
-        <div className="h-full min-h-[350px] lg:min-h-0 w-full bg-zinc-200 rounded-xl sm:rounded-2xl overflow-hidden shadow-inner relative">
+        <div className="h-full min-h-[380px] lg:min-h-0 w-full bg-zinc-200 rounded-xl sm:rounded-2xl overflow-hidden shadow-inner relative group">
           <iframe
-            src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d119743.53374959453!2d85.7380517529881!3d20.300870216790753!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3a1909d2d5170aa5%3A0xfc580e2b68b33cbb!2sBhubaneswar%2C%20Odisha!5e0!3m2!1sen!2sin!4v1711202888123!5m2!1sen!2sin"
+            src="https://maps.google.com/maps?q=18.8581581,82.5733337&hl=en&z=17&output=embed"
             className="absolute inset-0 w-full h-full border-0"
             allowFullScreen={false}
             loading="lazy"
             referrerPolicy="no-referrer-when-downgrade"
             title="Store Location"
           ></iframe>
+          <div className="absolute bottom-4 right-4 z-10">
+            <a
+              href="https://www.google.com/maps/place/18%C2%B051'29.4%22N+82%C2%B034'24.0%22E/@18.8581581,82.5707588,17z/data=!3m1!4b1!4m4!3m3!8m2!3d18.8581581!4d82.5733337?hl=en&entry=ttu&g_ep=EgoyMDI2MTEwNC4wIKXMDSoASAFQAw%3D%3D"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 bg-white/95 hover:bg-white text-zinc-900 shadow-md px-4 py-2 rounded-xl text-xs font-semibold transition-all hover:scale-105"
+            >
+              <MapPin className="w-3.5 h-3.5 text-orange-500" />
+              <span>Open in Google Maps</span>
+            </a>
+          </div>
         </div>
       </div>
     </section>

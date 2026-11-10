@@ -42,7 +42,7 @@ export default function PrivacyPolicyPage() {
             icon: Clock,
             title: "4. Data Retention",
             content:
-              "We retain the information we collect for as long as your account is active, or as needed to provide you services. If you wish to cancel your account or request that we no longer use your data, please contact us at support@sriramgarments.in.",
+              "We retain the information we collect for as long as your account is active, or as needed to provide you services. If you wish to cancel your account or request that we no longer use your data, please contact us at sriramgarments959@gmail.com.",
           },
         ].map((section) => (
           <div

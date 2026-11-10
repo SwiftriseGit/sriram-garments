@@ -19,6 +19,7 @@ export interface IProduct extends Document {
   highlights: string[];
   fabric: string;
   fit: string;
+  subType?: string | null;
   color: {
     name: string;
     hex: string;
@@ -68,6 +69,7 @@ const ProductSchema = new Schema<IProduct>(
     highlights: [{ type: String }],
     fabric: { type: String, default: "" },
     fit: { type: String, default: "" },
+    subType: { type: String, default: null, trim: true },
     color: {
       name: { type: String, required: true },
       hex: { type: String, required: true },

@@ -24,6 +24,21 @@ export function toProduct(doc: any): Product {
   const effectivePrice = isSale && doc.salePrice != null ? doc.salePrice : doc.originalPrice;
   const compareAtPrice = isSale ? doc.originalPrice : null;
 
+  // Infer subType if not explicitly set
+  let subType = doc.subType || null;
+  if (!subType) {
+    const text = `${doc.name || ""} ${doc.fit || ""} ${doc.description || ""}`.toLowerCase();
+    if (doc.category === "jeans") {
+      if (text.includes("slim")) subType = "slim";
+      else if (text.includes("ankle")) subType = "ankle";
+      else if (text.includes("straight")) subType = "straight";
+      else if (text.includes("baggy") || text.includes("relaxed") || text.includes("cargo")) subType = "baggy";
+    } else if (doc.category === "t-shirts") {
+      if (text.includes("full") || text.includes("long sleeve")) subType = "full";
+      else if (text.includes("half") || text.includes("short sleeve") || text.includes("polo") || text.includes("tee")) subType = "half";
+    }
+  }
+
   return {
     id: doc._id?.toString() || doc.id,
     slug: doc.slug,
@@ -46,6 +61,7 @@ export function toProduct(doc: any): Product {
     highlights: doc.highlights || [],
     fabric: doc.fabric || "",
     fit: doc.fit || "",
+    subType,
     addedRank: doc.addedRank || 0,
     salesCount: doc.salesCount || 0,
   };
@@ -58,6 +74,39 @@ function buildMongoFilter(query: CollectionQuery) {
   // Category filter
   if (query.category && query.category.length > 0) {
     filter.category = { $in: query.category };
+  }
+
+  // Sub-type filter (Jeans: slim, ankle, straight, baggy | T-Shirt: half, full)
+  if (query.subType && query.subType.length > 0) {
+    const subTypeConditions: any[] = [];
+    for (const st of query.subType) {
+      subTypeConditions.push({ subType: st });
+
+      if (st === "slim") {
+        subTypeConditions.push({ name: { $regex: /slim/i } });
+        subTypeConditions.push({ fit: { $regex: /slim/i } });
+      } else if (st === "ankle") {
+        subTypeConditions.push({ name: { $regex: /ankle/i } });
+        subTypeConditions.push({ fit: { $regex: /ankle/i } });
+      } else if (st === "straight") {
+        subTypeConditions.push({ name: { $regex: /straight/i } });
+        subTypeConditions.push({ fit: { $regex: /straight/i } });
+      } else if (st === "baggy") {
+        subTypeConditions.push({ name: { $regex: /(baggy|relaxed|cargo)/i } });
+        subTypeConditions.push({ fit: { $regex: /(baggy|relaxed)/i } });
+      } else if (st === "half") {
+        subTypeConditions.push({ name: { $regex: /(half|short sleeve|polo|tee)/i } });
+        subTypeConditions.push({ fit: { $regex: /(half|short sleeve)/i } });
+      } else if (st === "full") {
+        subTypeConditions.push({ name: { $regex: /(full|long sleeve)/i } });
+        subTypeConditions.push({ fit: { $regex: /(full|long sleeve)/i } });
+      }
+    }
+    if (subTypeConditions.length > 0) {
+      filter.$and = filter.$and
+        ? [...filter.$and, { $or: subTypeConditions }]
+        : [{ $or: subTypeConditions }];
+    }
   }
 
   // Size filter
@@ -163,7 +212,7 @@ export async function getCollectionFacets(): Promise<FacetCounts> {
   await connectDB();
 
   const products = await ProductModel.find({ isPublished: true })
-    .select("category inStock stockQuantity sizes originalPrice salePrice isSale")
+    .select("category subType name fit description inStock stockQuantity sizes originalPrice salePrice isSale")
     .lean();
 
   const counts: FacetCounts = {};
@@ -174,6 +223,9 @@ export async function getCollectionFacets(): Promise<FacetCounts> {
   for (const doc of products) {
     const p = toProduct(doc);
     bump(`category:${p.category}`);
+    if (p.subType) {
+      bump(`subType:${p.subType}`);
+    }
     bump(`availability:${p.inStock ? "in-stock" : "out-of-stock"}`);
     for (const size of p.sizes) {
       bump(`size:${size}`);

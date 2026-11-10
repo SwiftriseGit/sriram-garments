@@ -21,6 +21,25 @@ export const CATEGORY_OPTIONS: { value: CategorySlug; label: string }[] = [
   { value: "trousers", label: "Trousers" },
 ];
 
+/** Jeans sub-types / fits */
+export const JEANS_SUBTYPE_OPTIONS = [
+  { value: "slim", label: "Slim Fit" },
+  { value: "ankle", label: "Ankle Length" },
+  { value: "straight", label: "Straight Fit" },
+  { value: "baggy", label: "Baggy Fit" },
+] as const;
+
+/** T-Shirt sub-types / sleeve styles */
+export const TSHIRT_SUBTYPE_OPTIONS = [
+  { value: "half", label: "Half Sleeve" },
+  { value: "full", label: "Full Sleeve" },
+] as const;
+
+export const ALL_SUBTYPE_OPTIONS = [
+  ...JEANS_SUBTYPE_OPTIONS,
+  ...TSHIRT_SUBTYPE_OPTIONS,
+] as const;
+
 export const SIZE_OPTIONS: Size[] = ["S", "M", "L", "XL", "XXL"];
 
 export const AVAILABILITY_OPTIONS = [

@@ -376,7 +376,7 @@ export default function SiteHeader({ initialUser = null }: SiteHeaderProps) {
                         </div>
                         <div>
                           <h5 className="font-semibold text-[13px] text-zinc-900 mb-0.5">Free Express Shipping</h5>
-                          <p className="text-[11px] text-zinc-500">On all orders over ₹999</p>
+                          <p className="text-[11px] text-zinc-500">On all orders over ₹2999</p>
                         </div>
                       </div>
                       <Link
@@ -468,12 +468,12 @@ export default function SiteHeader({ initialUser = null }: SiteHeaderProps) {
                         <span className="text-sm font-medium text-zinc-500">Subtotal</span>
                         <span className="text-lg font-bold text-zinc-900">{formatPrice(subtotal)}</span>
                       </div>
-                      {subtotal < 999 && (
+                      {subtotal < 2999 && (
                         <div className="text-xs text-zinc-400">
-                          Add {formatPrice(999 - subtotal)} more for free shipping
+                          Add {formatPrice(2999 - subtotal)} more for free shipping
                         </div>
                       )}
-                      {subtotal >= 999 && (
+                      {subtotal >= 2999 && (
                         <div className="flex items-start gap-3 bg-emerald-50/50 p-3 rounded-xl border border-emerald-100/50">
                           <div className="text-emerald-500 mt-0.5 bg-emerald-100 p-1 rounded-full">
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>

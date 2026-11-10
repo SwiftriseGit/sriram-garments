@@ -23,13 +23,13 @@ export default async function Home() {
       <CategoryCards />
 
       {/* Features Strip */}
-      <FeaturesBanner />
+      {/* <FeaturesBanner /> */}
 
       {/* New Arrivals Product Grid */}
       <NewArrivals />
 
       {/* Features Strip (repeated as in design) */}
-      <FeaturesBanner />
+      {/* <FeaturesBanner /> */}
 
       {/* Offer: Buy 2 Get 1 Free (Dynamic & Toggleable) */}
       {bannerSettings.offerBanner.enabled && (
@@ -54,7 +54,7 @@ export default async function Home() {
       <Testimonials />
 
       {/* Follow Us */}
-      <FollowUs />
+      {/* <FollowUs /> */}
     </>
   );
 }

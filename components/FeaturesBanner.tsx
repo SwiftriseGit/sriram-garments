@@ -8,7 +8,7 @@ interface Feature {
 }
 
 const features: Feature[] = [
-  { icon: Truck, title: "Free Shipping", subtitle: "on orders above ₹999" },
+  { icon: Truck, title: "Free Shipping", subtitle: "on orders above ₹2999" },
   { icon: RotateCcw, title: "Easy Returns", subtitle: "within 7 days" },
   { icon: ShieldCheck, title: "Quality Assured", subtitle: "Premium Fabric" },
   {

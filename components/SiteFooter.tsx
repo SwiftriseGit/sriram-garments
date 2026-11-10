@@ -18,7 +18,10 @@ const helpLinks = [
 const aboutLinks = [
   { label: "Our Story", href: "/pages/about-us" },
   { label: "Quality Promise", href: "/pages/about-us" },
-  { label: "Store Locator", href: "#" },
+  {
+    label: "Store Locator",
+    href: "https://www.google.com/maps/place/18%C2%B051'29.4%22N+82%C2%B034'24.0%22E/@18.8581581,82.5707588,17z/data=!3m1!4b1!4m4!3m3!8m2!3d18.8581581!4d82.5733337?hl=en&entry=ttu&g_ep=EgoyMDI2MTEwNC4wIKXMDSoASAFQAw%3D%3D",
+  },
   { label: "Contact Us", href: "/pages/contact" },
 ];
 
@@ -85,12 +88,23 @@ export default function SiteFooter() {
               <ul className="space-y-2.5 sm:space-y-3">
                 {aboutLinks.map((link) => (
                   <li key={link.label}>
-                    <Link
-                      href={link.href}
-                      className="text-[12px] sm:text-[13px] font-medium text-zinc-600 hover:text-orange-500 transition-colors"
-                    >
-                      {link.label}
-                    </Link>
+                    {link.href.startsWith("http") ? (
+                      <a
+                        href={link.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[12px] sm:text-[13px] font-medium text-zinc-600 hover:text-orange-500 transition-colors"
+                      >
+                        {link.label}
+                      </a>
+                    ) : (
+                      <Link
+                        href={link.href}
+                        className="text-[12px] sm:text-[13px] font-medium text-zinc-600 hover:text-orange-500 transition-colors"
+                      >
+                        {link.label}
+                      </Link>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -132,7 +146,7 @@ export default function SiteFooter() {
                 <FaFacebook className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
               </a>
               <a
-                href="https://wa.me/"
+                href="https://wa.me/917735482919"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="hover:text-zinc-900 transition-colors"

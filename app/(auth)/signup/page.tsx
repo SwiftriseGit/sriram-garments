@@ -139,7 +139,7 @@ export default function SignupPage() {
                 id="firstName-input"
                 type="text"
                 autoComplete="given-name"
-                placeholder="John"
+                placeholder="First Name"
                 {...register("firstName")}
                 className={`w-full px-3.5 sm:px-4 py-2.5 sm:py-2.5 border rounded-xl text-sm outline-none transition-all placeholder:text-zinc-400 ${
                   errors.firstName
@@ -163,7 +163,7 @@ export default function SignupPage() {
                 id="lastName-input"
                 type="text"
                 autoComplete="family-name"
-                placeholder="Doe"
+                placeholder="Last Name"
                 {...register("lastName")}
                 className={`w-full px-3.5 sm:px-4 py-2.5 sm:py-2.5 border rounded-xl text-sm outline-none transition-all placeholder:text-zinc-400 ${
                   errors.lastName
@@ -189,7 +189,7 @@ export default function SignupPage() {
               id="signup-email-input"
               type="email"
               autoComplete="email"
-              placeholder="you@example.com"
+              placeholder="name@example.com"
               {...register("email")}
               className={`w-full px-3.5 sm:px-4 py-2.5 sm:py-2.5 border rounded-xl text-sm outline-none transition-all placeholder:text-zinc-400 ${
                 errors.email
@@ -214,7 +214,7 @@ export default function SignupPage() {
               id="signup-phone-input"
               type="tel"
               autoComplete="tel"
-              placeholder="+91 98765 43210"
+              placeholder="+91 XXXXXXXXXX"
               {...register("phone")}
               className={`w-full px-3.5 sm:px-4 py-2.5 sm:py-2.5 border rounded-xl text-sm outline-none transition-all placeholder:text-zinc-400 ${
                 errors.phone
