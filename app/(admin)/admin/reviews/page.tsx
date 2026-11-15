@@ -6,10 +6,25 @@ import RatingStars from "@/components/ui/RatingStars";
 
 export const instant = false;
 
-export default async function AdminReviewsPage() {
+export default async function AdminReviewsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string; rating?: string; page?: string }>;
+}) {
   await requireAdmin();
 
-  const { reviews, stats } = await getAllReviewsForAdmin();
+  const params = await searchParams;
+  const q = (params.q || "").trim();
+  const rating = params.rating ? parseInt(params.rating, 10) : undefined;
+  const page = params.page ? parseInt(params.page, 10) : 1;
+
+  // Server-side filtered & paginated query to MongoDB
+  const { reviews, pagination, stats } = await getAllReviewsForAdmin({
+    search: q,
+    rating,
+    page,
+    limit: 8,
+  });
 
   const fiveStarCount = stats.countsByRating[5] || 0;
   const fiveStarPercent =
@@ -33,7 +48,7 @@ export default async function AdminReviewsPage() {
         </div>
       </div>
 
-      {/* ── Top Metric Cards ── */}
+      {/* ── Top Metric Cards (Aggregated across DB) ── */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
         {/* Total Reviews */}
         <div className="bg-white border border-zinc-200/80 rounded-2xl p-5 shadow-2xs flex items-center gap-4">
@@ -93,8 +108,14 @@ export default async function AdminReviewsPage() {
         </div>
       </div>
 
-      {/* ── Reviews Table & Moderation Actions ── */}
-      <ReviewsTable initialReviews={reviews} stats={stats} />
+      {/* ── Reviews Table with Server-Side Pagination & Filters ── */}
+      <ReviewsTable
+        initialReviews={reviews}
+        pagination={pagination}
+        stats={stats}
+        currentSearch={q}
+        currentRating={rating}
+      />
     </div>
   );
 }

@@ -32,7 +32,7 @@ export default async function EditProductPage({
   }
 
   // Fetch reviews specific to this product
-  const { reviews, stats } = await getAllReviewsForAdmin({
+  const { reviews, pagination, stats } = await getAllReviewsForAdmin({
     productId: product._id.toString(),
   });
 
@@ -59,7 +59,12 @@ export default async function EditProductPage({
           </p>
         </div>
 
-        <ReviewsTable initialReviews={reviews} stats={stats} />
+        <ReviewsTable
+          initialReviews={reviews}
+          pagination={pagination}
+          stats={stats}
+          productId={product._id.toString()}
+        />
       </div>
     </div>
   );

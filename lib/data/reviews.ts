@@ -189,16 +189,30 @@ export interface AdminReviewItem {
   } | null;
 }
 
-/**
- * Fetch all customer reviews for Admin moderation.
- * Populates complete product details. Supports search & rating filtering.
- */
-export async function getAllReviewsForAdmin(query?: {
+export interface AdminReviewPagination {
+  page: number;
+  limit: number;
+  totalFiltered: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPrevPage: boolean;
+}
+
+export interface AdminReviewQuery {
   search?: string;
   rating?: number;
   productId?: string;
-}): Promise<{
+  page?: number;
+  limit?: number;
+}
+
+/**
+ * Fetch paginated customer reviews for Admin moderation directly from MongoDB.
+ * Filters by search keyword (customer/product/comment) and star rating on the backend.
+ */
+export async function getAllReviewsForAdmin(query?: AdminReviewQuery): Promise<{
   reviews: AdminReviewItem[];
+  pagination: AdminReviewPagination;
   stats: {
     total: number;
     averageRating: number;
@@ -221,26 +235,67 @@ export async function getAllReviewsForAdmin(query?: {
     if (query?.search && query.search.trim()) {
       const term = query.search.trim();
       const regex = new RegExp(term, "i");
+
+      // Also find products matching this search term to include their reviews
+      const matchingProducts = await ProductModel.find({
+        $or: [{ name: regex }, { category: regex }],
+      })
+        .select("_id")
+        .lean();
+      const matchingProductIds = matchingProducts.map((p) => p._id);
+
       filter.$or = [
         { name: regex },
         { email: regex },
         { review: regex },
+        ...(matchingProductIds.length > 0 ? [{ productId: { $in: matchingProductIds } }] : []),
       ];
     }
 
-    const docs = await ReviewModel.find(filter)
-      .sort({ createdAt: -1 })
-      .populate("productId", "name slug category images originalPrice salePrice isSale rating reviewCount")
-      .lean();
+    const page = Math.max(1, Number(query?.page) || 1);
+    const limit = Math.min(100, Math.max(1, Number(query?.limit) || 8));
+    const skip = (page - 1) * limit;
+
+    const [totalFiltered, docs, allStats, distributionAgg] = await Promise.all([
+      ReviewModel.countDocuments(filter),
+      ReviewModel.find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .populate("productId", "name slug category images originalPrice salePrice isSale rating reviewCount")
+        .lean(),
+      ReviewModel.aggregate([
+        {
+          $group: {
+            _id: null,
+            total: { $sum: 1 },
+            avgRating: { $avg: "$rating" },
+          },
+        },
+      ]),
+      ReviewModel.aggregate([
+        {
+          $group: {
+            _id: { $round: ["$rating", 0] },
+            count: { $sum: 1 },
+          },
+        },
+      ]),
+    ]);
 
     const countsByRating: Record<number, number> = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
-    let sumRating = 0;
+    for (const item of distributionAgg) {
+      if (item._id >= 1 && item._id <= 5) {
+        countsByRating[item._id] = item.count;
+      }
+    }
+
+    const totalAll = allStats[0]?.total || 0;
+    const overallAvgRating = allStats[0]?.avgRating
+      ? Math.round(allStats[0].avgRating * 10) / 10
+      : 0;
 
     const reviews: AdminReviewItem[] = docs.map((r: any) => {
-      const roundedStar = Math.max(1, Math.min(5, Math.round(r.rating || 0)));
-      countsByRating[roundedStar] = (countsByRating[roundedStar] || 0) + 1;
-      sumRating += r.rating || 0;
-
       const p = r.productId;
       const effectivePrice = p
         ? p.isSale && p.salePrice != null
@@ -271,14 +326,21 @@ export async function getAllReviewsForAdmin(query?: {
       };
     });
 
-    const total = reviews.length;
-    const averageRating = total > 0 ? Math.round((sumRating / total) * 10) / 10 : 0;
+    const totalPages = Math.ceil(totalFiltered / limit) || 1;
 
     return {
       reviews,
+      pagination: {
+        page,
+        limit,
+        totalFiltered,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1,
+      },
       stats: {
-        total,
-        averageRating,
+        total: totalAll,
+        averageRating: overallAvgRating,
         countsByRating,
       },
     };
@@ -286,6 +348,14 @@ export async function getAllReviewsForAdmin(query?: {
     console.error("Error in getAllReviewsForAdmin:", error);
     return {
       reviews: [],
+      pagination: {
+        page: 1,
+        limit: 8,
+        totalFiltered: 0,
+        totalPages: 1,
+        hasNextPage: false,
+        hasPrevPage: false,
+      },
       stats: { total: 0, averageRating: 0, countsByRating: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 } },
     };
   }
