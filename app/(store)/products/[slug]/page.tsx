@@ -2,14 +2,18 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { Banknote, ChevronDown, RotateCcw, Star, Truck } from "lucide-react";
+import { Banknote, ChevronDown, RotateCcw, Truck } from "lucide-react";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import ProductGallery from "@/components/product/ProductGallery";
 import ProductPurchase from "@/components/product/ProductPurchase";
 import RelatedProducts, { RelatedProductsSkeleton } from "@/components/product/RelatedProducts";
+import ProductReviews from "@/components/product/ProductReviews";
+import RatingStars from "@/components/ui/RatingStars";
 import { categoryLabel } from "@/lib/catalog/options";
 import { discountPercent, formatPrice } from "@/lib/format";
 import { getAllProductSlugs, getProductBySlug, getStyleVariants } from "@/lib/data/products";
+import { getReviewsForProduct, getReviewSummaryForProduct } from "@/lib/data/reviews";
+import { getOptionalSession } from "@/lib/auth/dal";
 
 /** Pre-render every product page at build time (catalog is public & cached). */
 export async function generateStaticParams() {
@@ -110,21 +114,9 @@ export default async function ProductPage({
           </h1>
 
           <a href="#reviews" className="inline-flex items-center gap-2 mt-3 group">
-            <span className="flex items-center gap-0.5" aria-hidden>
-              {Array.from({ length: 5 }, (_, i) => (
-                <Star
-                  key={i}
-                  className={`w-3.5 h-3.5 ${
-                    i < Math.round(product.rating)
-                      ? "fill-yellow-400 text-yellow-400"
-                      : "fill-zinc-200 text-zinc-200"
-                  }`}
-                />
-              ))}
-            </span>
-            <span className="text-[12px] font-semibold text-zinc-900">{product.rating}</span>
+            <RatingStars rating={product.rating} size="sm" showNumber />
             <span className="text-[12px] font-medium text-zinc-500 group-hover:text-orange-500 underline underline-offset-2 transition-colors">
-              {product.reviewCount} reviews
+              ({product.reviewCount} reviews)
             </span>
           </a>
 
@@ -242,7 +234,55 @@ export default async function ProductPage({
       <Suspense fallback={<RelatedProductsSkeleton />}>
         <RelatedProducts styleId={product.styleId} category={product.category} />
       </Suspense>
+
+      {/* Product Reviews Section (After You May Also Like / Related Products) */}
+      <Suspense
+        fallback={
+          <div className="h-48 animate-pulse bg-zinc-50 rounded-2xl mt-12 border border-zinc-100" />
+        }
+      >
+        <ProductReviewsSection
+          productId={product.id}
+          productSlug={product.slug}
+          productName={product.name}
+        />
+      </Suspense>
     </section>
+  );
+}
+
+async function ProductReviewsSection({
+  productId,
+  productSlug,
+  productName,
+}: {
+  productId: string;
+  productSlug: string;
+  productName: string;
+}) {
+  const [session, reviews, summary] = await Promise.all([
+    getOptionalSession(),
+    getReviewsForProduct(productId),
+    getReviewSummaryForProduct(productId),
+  ]);
+
+  const currentUser = session
+    ? {
+        userId: session.userId,
+        email: session.email,
+        firstName: session.firstName,
+      }
+    : null;
+
+  return (
+    <ProductReviews
+      productId={productId}
+      productSlug={productSlug}
+      productName={productName}
+      initialReviews={reviews}
+      summary={summary}
+      currentUser={currentUser}
+    />
   );
 }
 

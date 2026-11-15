@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Heart, ShoppingBag, Check, Star } from "lucide-react";
+import RatingStars from "@/components/ui/RatingStars";
 import { formatPrice } from "@/lib/format";
 import { useCartStore } from "@/lib/store/cart";
 import { useWishlistStore } from "@/lib/store/wishlist";
@@ -269,11 +270,8 @@ export default function ProductCard({
           </div>
 
           {product.rating > 0 && (
-            <div className="hidden sm:flex items-center gap-0.5 text-zinc-500">
-              <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-              <span className="text-[10px] font-semibold">
-                {product.rating.toFixed(1)}
-              </span>
+            <div className="flex items-center gap-1 text-zinc-500">
+              <RatingStars rating={product.rating} size="xs" showNumber />
             </div>
           )}
         </div>

@@ -10,9 +10,13 @@ import SeasonSaleBanner from "@/components/SeasonSaleBanner";
 import Testimonials from "@/components/Testimonials";
 import FollowUs from "@/components/FollowUs";
 import { getBannerSettings } from "@/lib/data/banners";
+import { getHomepageReviews } from "@/lib/data/reviews";
 
 export default async function Home() {
-  const bannerSettings = await getBannerSettings();
+  const [bannerSettings, reviews] = await Promise.all([
+    getBannerSettings(),
+    getHomepageReviews(9),
+  ]);
 
   return (
     <>
@@ -50,8 +54,8 @@ export default async function Home() {
         <SeasonSaleBanner data={bannerSettings.seasonSaleBanner} />
       )}
 
-      {/* Testimonials */}
-      <Testimonials />
+      {/* Testimonials (Renders only if we have reviews) */}
+      <Testimonials reviews={reviews} />
 
       {/* Follow Us */}
       {/* <FollowUs /> */}

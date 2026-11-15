@@ -47,8 +47,8 @@ export function toProduct(doc: any): Product {
     category: doc.category as CategorySlug,
     price: effectivePrice,
     compareAtPrice: compareAtPrice,
-    rating: doc.rating ?? 4.5,
-    reviewCount: doc.reviewCount ?? 12,
+    rating: typeof doc.rating === "number" ? doc.rating : 0,
+    reviewCount: typeof doc.reviewCount === "number" ? doc.reviewCount : 0,
     inStock: Boolean(doc.inStock !== false && (doc.stockQuantity ?? 1) > 0),
     sizes: (doc.sizes || ["S", "M", "L", "XL"]) as Size[],
     color: {
