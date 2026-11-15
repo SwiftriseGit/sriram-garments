@@ -14,6 +14,7 @@ import {
   Store,
   ShoppingBag,
   ArrowUpRight,
+  Star,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -21,6 +22,7 @@ const NAV_ITEMS = [
   { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
   { name: "Products", href: "/admin/products", icon: Package },
   { name: "Orders", href: "/admin/orders", icon: ShoppingCart },
+  { name: "Reviews", href: "/admin/reviews", icon: Star },
   { name: "Customers", href: "/admin/customers", icon: Users },
   { name: "Categories", href: "/admin/categories", icon: Tags },
   { name: "Banners & Offers", href: "/admin/banners", icon: TicketPercent },

@@ -2,6 +2,8 @@ import { requireAdmin } from "@/lib/auth/dal";
 import connectDB from "@/lib/db";
 import ProductModel from "@/lib/models/Product";
 import ProductForm from "@/components/admin/ProductForm";
+import ReviewsTable from "@/components/admin/ReviewsTable";
+import { getAllReviewsForAdmin } from "@/lib/data/reviews";
 import { notFound } from "next/navigation";
 import mongoose from "mongoose";
 
@@ -29,6 +31,11 @@ export default async function EditProductPage({
     notFound();
   }
 
+  // Fetch reviews specific to this product
+  const { reviews, stats } = await getAllReviewsForAdmin({
+    productId: product._id.toString(),
+  });
+
   // Convert Mongo document to plain JSON-serializable object
   const serializableProduct = {
     ...product,
@@ -37,5 +44,23 @@ export default async function EditProductPage({
     updatedAt: product.updatedAt?.toISOString?.() || null,
   };
 
-  return <ProductForm product={serializableProduct as any} />;
+  return (
+    <div className="space-y-12">
+      <ProductForm product={serializableProduct as any} />
+
+      {/* Customer Reviews for this specific product */}
+      <div className="bg-white border border-zinc-200/80 rounded-2xl p-6 sm:p-8 shadow-2xs space-y-6">
+        <div>
+          <h2 className="text-xl font-bold text-zinc-950 tracking-tight">
+            Customer Reviews ({reviews.length})
+          </h2>
+          <p className="text-xs text-zinc-500 mt-1">
+            Product Rating: <strong className="text-zinc-800">{product.rating ? product.rating.toFixed(1) : "0.0"}</strong> / 5.0 ({product.reviewCount || 0} reviews)
+          </p>
+        </div>
+
+        <ReviewsTable initialReviews={reviews} stats={stats} />
+      </div>
+    </div>
+  );
 }

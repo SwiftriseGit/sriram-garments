@@ -76,10 +76,7 @@ export default function Testimonials({ reviews = [] }: TestimonialsProps) {
         {/* Section Header */}
         <div className="flex justify-between items-end mb-8 sm:mb-10">
           <div>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-50 text-orange-600 text-xs font-semibold mb-2">
-              <Sparkles className="w-3.5 h-3.5" />
-              Customer Love
-            </div>
+          
             <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-zinc-900 tracking-tight">
               What Our Customers Say
             </h2>

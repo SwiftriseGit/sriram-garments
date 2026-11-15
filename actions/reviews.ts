@@ -7,7 +7,7 @@ import ReviewModel from "@/lib/models/Review";
 import ProductModel from "@/lib/models/Product";
 import UserModel from "@/lib/models/User";
 import OrderModel from "@/lib/models/Order";
-import { getOptionalSession } from "@/lib/auth/dal";
+import { getOptionalSession, requireAdmin } from "@/lib/auth/dal";
 import { recalculateProductRating } from "@/lib/data/reviews";
 
 export interface ReviewSubmitInput {
@@ -157,6 +157,71 @@ export async function submitReviewAction(
     return {
       success: false,
       error: err.message || "Failed to submit your review. Please try again.",
+    };
+  }
+}
+
+/**
+ * Delete a customer review. Admin only.
+ * Automatically recalculates product rating & review count and updates cache.
+ */
+export async function deleteReviewAction(
+  reviewIdOrFormData: string | FormData
+): Promise<{ success: boolean; message?: string; error?: string }> {
+  try {
+    await requireAdmin();
+
+    const reviewId =
+      typeof reviewIdOrFormData === "string"
+        ? reviewIdOrFormData
+        : String(
+            reviewIdOrFormData.get("id") ||
+              reviewIdOrFormData.get("reviewId") ||
+              ""
+          );
+
+    if (!reviewId || !mongoose.isValidObjectId(reviewId)) {
+      return { success: false, error: "Invalid review ID." };
+    }
+
+    await connectDB();
+    const review = await ReviewModel.findById(reviewId);
+    if (!review) {
+      return { success: false, error: "Review could not be found." };
+    }
+
+    const productId = review.productId;
+    await ReviewModel.findByIdAndDelete(reviewId);
+
+    // Recalculate average fraction rating & reviewCount for this product
+    await recalculateProductRating(productId);
+
+    try {
+      updateTag("reviews");
+      updateTag("products");
+    } catch (e) {
+      // Ignored in non-cache contexts
+    }
+
+    const product = await ProductModel.findById(productId).select("slug").lean();
+    if (product) {
+      revalidatePath(`/products/${product.slug}`);
+      revalidatePath(`/admin/products/${product._id}`);
+    }
+    revalidatePath("/admin/reviews");
+    revalidatePath("/admin/products");
+    revalidatePath("/admin");
+    revalidatePath("/");
+
+    return {
+      success: true,
+      message: "Review deleted successfully.",
+    };
+  } catch (err: any) {
+    console.error("deleteReviewAction error:", err);
+    return {
+      success: false,
+      error: err.message || "Failed to delete review. Please try again.",
     };
   }
 }

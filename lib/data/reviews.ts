@@ -169,3 +169,125 @@ export async function getHomepageReviews(limit = 10): Promise<SerializedReview[]
   }
 }
 
+export interface AdminReviewItem {
+  id: string;
+  name: string;
+  email: string;
+  rating: number;
+  review: string;
+  isVerifiedPurchase: boolean;
+  createdAt: string;
+  product: {
+    id: string;
+    name: string;
+    slug: string;
+    category: string;
+    price: number;
+    image: string;
+    rating: number;
+    reviewCount: number;
+  } | null;
+}
+
+/**
+ * Fetch all customer reviews for Admin moderation.
+ * Populates complete product details. Supports search & rating filtering.
+ */
+export async function getAllReviewsForAdmin(query?: {
+  search?: string;
+  rating?: number;
+  productId?: string;
+}): Promise<{
+  reviews: AdminReviewItem[];
+  stats: {
+    total: number;
+    averageRating: number;
+    countsByRating: Record<number, number>;
+  };
+}> {
+  try {
+    await connectDB();
+
+    const filter: Record<string, any> = {};
+
+    if (query?.productId && mongoose.isValidObjectId(query.productId)) {
+      filter.productId = new mongoose.Types.ObjectId(query.productId);
+    }
+
+    if (query?.rating && query.rating >= 1 && query.rating <= 5) {
+      filter.rating = Number(query.rating);
+    }
+
+    if (query?.search && query.search.trim()) {
+      const term = query.search.trim();
+      const regex = new RegExp(term, "i");
+      filter.$or = [
+        { name: regex },
+        { email: regex },
+        { review: regex },
+      ];
+    }
+
+    const docs = await ReviewModel.find(filter)
+      .sort({ createdAt: -1 })
+      .populate("productId", "name slug category images originalPrice salePrice isSale rating reviewCount")
+      .lean();
+
+    const countsByRating: Record<number, number> = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+    let sumRating = 0;
+
+    const reviews: AdminReviewItem[] = docs.map((r: any) => {
+      const roundedStar = Math.max(1, Math.min(5, Math.round(r.rating || 0)));
+      countsByRating[roundedStar] = (countsByRating[roundedStar] || 0) + 1;
+      sumRating += r.rating || 0;
+
+      const p = r.productId;
+      const effectivePrice = p
+        ? p.isSale && p.salePrice != null
+          ? p.salePrice
+          : p.originalPrice
+        : 0;
+
+      return {
+        id: r._id.toString(),
+        name: r.name,
+        email: r.email,
+        rating: r.rating,
+        review: r.review,
+        isVerifiedPurchase: Boolean(r.isVerifiedPurchase),
+        createdAt: r.createdAt ? new Date(r.createdAt).toISOString() : "",
+        product: p
+          ? {
+              id: p._id.toString(),
+              name: p.name,
+              slug: p.slug,
+              category: p.category,
+              price: effectivePrice,
+              image: p.images?.[0] || "",
+              rating: typeof p.rating === "number" ? p.rating : 0,
+              reviewCount: typeof p.reviewCount === "number" ? p.reviewCount : 0,
+            }
+          : null,
+      };
+    });
+
+    const total = reviews.length;
+    const averageRating = total > 0 ? Math.round((sumRating / total) * 10) / 10 : 0;
+
+    return {
+      reviews,
+      stats: {
+        total,
+        averageRating,
+        countsByRating,
+      },
+    };
+  } catch (error) {
+    console.error("Error in getAllReviewsForAdmin:", error);
+    return {
+      reviews: [],
+      stats: { total: 0, averageRating: 0, countsByRating: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 } },
+    };
+  }
+}
+

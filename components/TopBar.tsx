@@ -13,10 +13,6 @@ export default function TopBar() {
         SriRam Garments
       </div>
       <div className="hidden sm:flex items-center gap-1 text-zinc-300">
-        <a href="/profile/orders" className="hover:text-white transition-colors">
-          Track Order
-        </a>
-        <span className="text-zinc-500 mx-1">|</span>
         <a href="/pages/contact" className="hover:text-white transition-colors">
           Help
         </a>
