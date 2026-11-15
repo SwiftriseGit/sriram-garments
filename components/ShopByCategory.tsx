@@ -5,7 +5,7 @@ import { ArrowRight } from "lucide-react";
 const categories = [
   {
     name: "T-Shirts",
-    startingPrice: "₹399",
+    // startingPrice: "₹399",
     bg: "bg-zinc-100",
     image: "/images/category-tshirts.png",
     alt: "T-Shirts Collection",
@@ -13,7 +13,7 @@ const categories = [
   },
   {
     name: "Shirts",
-    startingPrice: "₹599",
+    // startingPrice: "₹599",
     bg: "bg-zinc-100",
     image: "/images/category-shirts.png",
     alt: "Shirts Collection",
@@ -21,18 +21,34 @@ const categories = [
   },
   {
     name: "Jeans",
-    startingPrice: "₹899",
+    // startingPrice: "₹899",
     bg: "bg-zinc-100",
     image: "/images/category-jeans.png",
     alt: "Jeans Collection",
     href: "/collections?category=jeans",
   },
   {
-    name: "Ethnic Wear",
-    startingPrice: "₹699",
+    name: "Joggers",
+    // startingPrice: "₹799",
     bg: "bg-zinc-100",
-    image: "/images/category-ethnic.png",
-    alt: "Ethnic Wear Collection",
+    image: "/Athletic Joggers Stack and Display.png",
+    alt: "Joggers Collection",
+    href: "/collections?category=trousers",
+  },
+  {
+    name: "Jackets",
+    // startingPrice: "₹1499",
+    bg: "bg-zinc-100",
+    image: "/Leather Bomber Jacket Stack.png",
+    alt: "Jackets Collection",
+    href: "/collections",
+  },
+  {
+    name: "Hoodies",
+    // startingPrice: "₹999",
+    bg: "bg-zinc-100",
+    image: "/Stacked Mountain Logo Hoodies.png",
+    alt: "Hoodies Collection",
     href: "/collections",
   },
 ];
@@ -55,8 +71,8 @@ export default function ShopByCategory() {
         </Link>
       </div>
 
-      {/* Category Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5 lg:gap-6 pt-3 pb-5">
+      {/* Category Grid (3 cards in one line on desktop / laptop) */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-3 sm:gap-5 lg:gap-6 pt-3 pb-5">
         {categories.map((cat) => (
           <Link
             key={cat.name}
@@ -69,12 +85,12 @@ export default function ShopByCategory() {
                 <h3 className="text-sm sm:text-base lg:text-lg font-bold text-zinc-900 group-hover:text-orange-600 transition-colors leading-tight">
                   {cat.name}
                 </h3>
-                <p className="text-[11px] sm:text-[12px] text-zinc-500 mt-1 leading-snug">
+                {/* <p className="text-[11px] sm:text-[12px] text-zinc-500 mt-1 leading-snug">
                   Starting at{" "}
                   <span className="font-semibold text-zinc-800">
                     {cat.startingPrice}
                   </span>
-                </p>
+                </p> */}
               </div>
 
               <div

@@ -4,12 +4,12 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Heart, ShoppingBag, Check, Star } from "lucide-react";
-import RatingStars from "@/components/ui/RatingStars";
 import { formatPrice } from "@/lib/format";
 import { useCartStore } from "@/lib/store/cart";
 import { useWishlistStore } from "@/lib/store/wishlist";
 import { cn } from "@/lib/utils";
 import type { Product } from "@/lib/catalog/types";
+
 
 interface ProductCardProps {
   product: Product;
@@ -270,8 +270,11 @@ export default function ProductCard({
           </div>
 
           {product.rating > 0 && (
-            <div className="flex items-center gap-1 text-zinc-500">
-              <RatingStars rating={product.rating} size="xs" showNumber />
+            <div className="flex items-center gap-1 text-zinc-600 bg-zinc-50 px-1.5 py-0.5 rounded-md border border-zinc-100">
+              <Star className="w-3 h-3 fill-amber-400 text-amber-400 shrink-0" />
+              <span className="text-[10px] sm:text-[11px] font-semibold text-zinc-700 leading-none">
+                {product.rating.toFixed(1)}
+              </span>
             </div>
           )}
         </div>
